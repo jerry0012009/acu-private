@@ -193,8 +193,36 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
                     _acu_db_session, session_id
                 )
                 _acu_tasks, _acu_eil = _acu_result.unpack()
-                if not _acu_eil:
-                    for _acu_task in _acu_tasks:
+                _acu_planning_result = await TD.fetch_planning_task(
+                    _acu_db_session, session_id
+                )
+                _acu_planning_task, _acu_planning_eil = _acu_planning_result.unpack()
+                if not _acu_eil and not _acu_planning_eil:
+                    _acu_candidates = list(_acu_tasks)
+                    if _acu_planning_task is not None:
+                        _acu_candidates.append(_acu_planning_task)
+                    _acu_learning_candidates = [
+                        _acu_task
+                        for _acu_task in _acu_candidates
+                        if _acu_task.raw_message_ids
+                        and getattr(_acu_task.status, "value", _acu_task.status)
+                        not in ("success", "failed")
+                    ]
+                    if not _acu_learning_candidates:
+                        _acu_message_ids = [message.message_id for message in messages]
+                        await TD.append_messages_to_planning_section(
+                            _acu_db_session,
+                            project_id,
+                            session_id,
+                            _acu_message_ids,
+                        )
+                        _acu_planning_result = await TD.fetch_planning_task(
+                            _acu_db_session, session_id
+                        )
+                        _acu_planning_task, _acu_planning_eil = _acu_planning_result.unpack()
+                        if not _acu_planning_eil and _acu_planning_task is not None:
+                            _acu_candidates = [_acu_planning_task]
+                    for _acu_task in _acu_candidates:
                         _acu_status = getattr(_acu_task.status, "value", _acu_task.status)
                         if (
                             _acu_status not in ("success", "failed")
