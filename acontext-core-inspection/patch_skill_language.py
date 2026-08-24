@@ -77,6 +77,13 @@ The situation, user characteristic or preference, and reason for the choice.
 The short reminder to use when a similar trajectory appears.
 ```
 
+For an ACU dissatisfaction context, each distinct reusable preference must be
+stored as its own top-level Skill. Do not write it into Acontext's built-in
+`daily-logs` or `user-general-facts` Skills, and do not use those generic Skills
+as the catalog title for an ACU preference. Create or update a dedicated Skill
+whose `name` and `description` identify that preference directly; its `SKILL.md`
+is the preference document above.
+
 Before creating or updating a document, inspect related existing Skills. Treat
 the whole learning space as one evolving user-preference picture:
 
