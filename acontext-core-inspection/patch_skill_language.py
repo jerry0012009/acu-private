@@ -180,6 +180,14 @@ if "ACU customization: dispatch dissatisfaction for pending tasks" in agent_sour
     raise RuntimeError("ACU pending-task learning patch already exists")
 if marker not in agent_source:
     raise RuntimeError("Acontext task agent publish marker is unavailable")
+loop_marker = "    while already_iterations < max_iterations:\n"
+if loop_marker not in agent_source:
+    raise RuntimeError("Acontext task agent loop marker is unavailable")
+agent_source = agent_source.replace(
+    loop_marker,
+    "    _acu_dissatisfaction_dispatched = False\n" + loop_marker,
+    1,
+)
 
 pending_learning_patch = """        # ACU customization: dispatch dissatisfaction for pending tasks.
         _acu_dissatisfaction_signal = any(
@@ -187,7 +195,11 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
             in message.to_string({}, truncate_chars=2048)
             for message in messages
         )
-        if _acu_dissatisfaction_signal and learning_space_id is not None:
+        if (
+            _acu_dissatisfaction_signal
+            and learning_space_id is not None
+            and not _acu_dissatisfaction_dispatched
+        ):
             async with DB_CLIENT.get_session_context() as _acu_db_session:
                 _acu_result = await TD.fetch_current_tasks(
                     _acu_db_session, session_id
@@ -209,19 +221,36 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
                         not in ("success", "failed")
                     ]
                     if not _acu_learning_candidates:
-                        _acu_message_ids = [message.message_id for message in messages]
-                        await TD.append_messages_to_planning_section(
+                        # Distillation's existing loader only includes ordinary
+                        # tasks, so use one ordinary failed task as the smallest
+                        # bridge for a fresh dissatisfaction-only session.
+                        _acu_insert_result = await TD.insert_task(
                             _acu_db_session,
                             project_id,
                             session_id,
-                            _acu_message_ids,
+                            len(_acu_tasks),
+                            {
+                                "task_description": (
+                                    "user experience feedback requiring "
+                                    "preference learning"
+                                )
+                            },
+                            status="failed",
                         )
-                        _acu_planning_result = await TD.fetch_planning_task(
-                            _acu_db_session, session_id
+                        _acu_fallback_task, _acu_insert_eil = (
+                            _acu_insert_result.unpack()
                         )
-                        _acu_planning_task, _acu_planning_eil = _acu_planning_result.unpack()
-                        if not _acu_planning_eil and _acu_planning_task is not None:
-                            _acu_candidates = [_acu_planning_task]
+                        if not _acu_insert_eil and _acu_fallback_task is not None:
+                            _acu_message_ids = [
+                                message.message_id for message in messages
+                            ]
+                            await TD.append_messages_to_task(
+                                _acu_db_session,
+                                _acu_message_ids,
+                                _acu_fallback_task.id,
+                            )
+                            _acu_candidates = [_acu_fallback_task]
+                            _acu_learning_candidates = [_acu_fallback_task]
                     for _acu_task in _acu_candidates:
                         _acu_status = getattr(_acu_task.status, "value", _acu_task.status)
                         if (
@@ -233,6 +262,17 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
                             )
                             if _acu_task.id not in _pending_learning_task_ids:
                                 _pending_learning_task_ids.append(_acu_task.id)
+                    if _acu_learning_candidates:
+                        for _acu_task in _acu_learning_candidates:
+                            if _acu_task.id not in _pending_learning_task_ids:
+                                _pending_learning_task_ids.append(_acu_task.id)
+                    _acu_dissatisfaction_dispatched = bool(_acu_learning_candidates)
+
+        if _acu_dissatisfaction_signal:
+            # Do not also send this context through Acontext's generic
+            # submit_user_preference shortcut; the failure distillation path
+            # is the ACU preference-learning path for this signal.
+            _pending_preferences.clear()
 
 """
 AGENT_TASK_PATH.write_text(
