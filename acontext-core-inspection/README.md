@@ -31,4 +31,7 @@ completion cannot multiply retries across nested SDK and Router layers.
 
 It also records each successful upstream Core LLM completion in the existing
 Core PostgreSQL database table `acontext_llm_usage_ledger`. The ledger is
-best-effort and never blocks a Core task.
+best-effort and never blocks a Core task. When the Router relay supplies an
+`execution_profile_id`, the completion callback returns it to the Router so
+the Router can apply its own Profile economics without moving billing logic
+into Acontext.

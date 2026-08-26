@@ -151,6 +151,9 @@ class AcontextUsageLedger:
                                 "session_id": session_id,
                                 "learning_space_id": learning_space_id,
                                 "task_id": task_id,
+                                "execution_profile_id": fields.get(
+                                    "execution_profile_id"
+                                ),
                                 "input_tokens": input_tokens,
                                 "cached_input_tokens": cached_tokens,
                                 "output_tokens": output_tokens,

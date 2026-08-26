@@ -6,6 +6,9 @@ RUN /app/.venv/bin/python /app/patch_skill_language.py
 COPY patch_llm_retries.py /app/patch_llm_retries.py
 RUN /app/.venv/bin/python /app/patch_llm_retries.py
 
+COPY patch_usage_profile.py /app/patch_usage_profile.py
+RUN /app/.venv/bin/python /app/patch_usage_profile.py
+
 COPY inspection.py /app/inspection.py
 COPY api_with_inspection.py /app/api_with_inspection.py
 COPY usage_ledger.py /app/usage_ledger.py
