@@ -25,6 +25,10 @@ The upstream tools, queues, and storage remain unchanged. The wrapper only
 patches the existing task-agent source to dispatch an explicitly marked
 `user_dissatisfaction` context for learning.
 
+The wrapper disables the OpenAI and Anthropic SDKs' built-in request retries.
+The ACU Router relay owns the five-attempt provider failover budget, so a Core
+completion cannot multiply retries across nested SDK and Router layers.
+
 It also records each successful upstream Core LLM completion in the existing
 Core PostgreSQL database table `acontext_llm_usage_ledger`. The ledger is
 best-effort and never blocks a Core task.
