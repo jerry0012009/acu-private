@@ -25,6 +25,24 @@ previous direction from a user-experience perspective.
 - Do not turn the signal into a generic technical SOP.
 """
 
+ACU_FILM_TASK_POLICY = """
+
+## ACU Film Preference Learning
+When the input contains `private_acu_learning_kind: film_preference_v1`, the
+message is a single film SelectionExperience submitted for preference
+learning. The message may contain text only or one or more images in the same
+OpenAI-compatible user message.
+
+- Treat the SelectionExperience as the complete learning unit.
+- Preserve its quality_context, film_language_analysis, team decision,
+  good_points, missing_points, and rejection_reason.
+- Extract multiple conditional LearningClaims when the evidence supports
+  multiple visual-language topics.
+- Keep rules conditional on scene, character, relationship, narrative purpose,
+  emotion, and production context.
+- Use the existing Learning Space and update topic-level Quality Skills.
+"""
+
 ACU_DISTILLATION_POLICY = """
 
 ## ACU Trajectory Preference Distillation
@@ -45,6 +63,24 @@ Do not over-generalize from a single fact or turn the result into a task log.
 Keep the exact `experience_id` from the ACU learning signal in the distilled
 result, preferably in `applies_when`, so the Skill Agent can preserve evidence.
 If the evidence does not support a reusable preference, skip learning.
+"""
+
+ACU_FILM_DISTILLATION_POLICY = """
+
+## ACU Film Distillation
+When the input contains `private_acu_learning_kind: film_preference_v1`:
+
+- Distill the single SelectionExperience into one or more LearningClaims.
+- A LearningClaim has: topic, applies_when, prefer, avoid, why, and
+  example_ref.
+- Use the submitted image or images as visual evidence when present.
+- Preserve the exact `experience_id` in every applicable claim.
+- Keep apparently conflicting visual choices as separate conditional rules
+  when their narrative conditions differ.
+- The output can cover multiple topics, including lighting, color,
+  composition, shot, camera, mise-en-scene, character and relationship, and
+  visual emotion.
+- Do not produce a production task log or generic technical SOP.
 """
 
 ACU_SKILL_POLICY = """
@@ -101,6 +137,41 @@ the whole learning space as one evolving user-preference picture:
   separate profile database.
 """
 
+ACU_FILM_SKILL_POLICY = """
+
+## ACU Film Quality Skills
+When the input contains `private_acu_learning_kind: film_preference_v1`:
+
+- Store or update topic-level Quality Skills from the submitted claims.
+- Each Skill catalog entry must have a clear title/name and description.
+- The Skill body must retain conditional rules under Applies When, Prefer,
+  Avoid, Why, and Examples.
+- Keep different directions for the same visual dimension when they apply to
+  different narrative or character conditions.
+- One SelectionExperience may update multiple topic Skills.
+"""
+
+ACU_FILM_SEED_CATALOG = """
+
+## ACU Film Seed Skill Catalog
+Use these topic-level Skills as the initial film-v1 catalog:
+
+- film-language-overview: Film visual language as a connected system.
+- film-language-narrative-context: Scene purpose, dramatic function, and constraints.
+- film-language-character-and-relationship: Character state, relationship, and distance.
+- film-language-lighting: Light direction, contrast, softness, and exposure.
+- film-language-color: Color temperature, saturation, palette, and contrast.
+- film-language-shot-and-composition: Shot size, framing, balance, and negative space.
+- film-language-camera: Camera position, movement, lens impression, and viewpoint.
+- film-language-mise-en-scene: Space, objects, blocking, and visual hierarchy.
+- film-language-visual-emotion: Visual choices that shape audience emotion.
+- film-language-integration: Combinations of visual choices serving one narrative goal.
+
+Create or update only the topic Skills supported by the current claims. Keep
+the catalog title and description specific to the topic, and keep learned
+rules conditional on the submitted context.
+"""
+
 PATCHES = {
     "task.py": f'''
 
@@ -110,6 +181,7 @@ _acu_original_task_system_prompt = TaskPrompt.system_prompt
 
 def _acu_preference_task_system_prompt(cls) -> str:
     return _acu_original_task_system_prompt() + """{ACU_TASK_POLICY}
+{ACU_FILM_TASK_POLICY}
 """
 
 
@@ -131,6 +203,7 @@ def _acu_language_aware_success_prompt(cls) -> str:
 ## Skill Language
 {LANGUAGE_POLICY}
 {ACU_DISTILLATION_POLICY}
+{ACU_FILM_DISTILLATION_POLICY}
 """
 
 
@@ -139,6 +212,7 @@ def _acu_language_aware_failure_prompt(cls) -> str:
 ## Skill Language
 {LANGUAGE_POLICY}
 {ACU_DISTILLATION_POLICY}
+{ACU_FILM_DISTILLATION_POLICY}
 """
 
 
@@ -160,6 +234,8 @@ def _acu_preference_skill_system_prompt(cls) -> str:
 ## Skill Language
 {LANGUAGE_POLICY}
 {ACU_SKILL_POLICY}
+{ACU_FILM_SKILL_POLICY}
+{ACU_FILM_SEED_CATALOG}
 """
 
 
@@ -176,10 +252,10 @@ for filename, patch in PATCHES.items():
     path.write_text(source.rstrip() + patch, encoding="utf-8")
 
 
-# Acontext only publishes task distillation for success/failed tasks. When ACU
-# has already classified the user input as dissatisfaction, make non-terminal
-# tasks eligible for the existing failure-distillation pipeline. This keeps the
-# change inside the wrapper and does not add a new queue or persistence model.
+# Acontext only publishes task distillation for success/failed tasks. Make an
+# explicitly marked ACU learning session eligible for the existing
+# failure-distillation pipeline. This keeps the change inside the wrapper and
+# does not add a new queue or persistence model.
 AGENT_TASK_PATH = Path("/app/acontext_core/llm/agent/task.py")
 agent_source = AGENT_TASK_PATH.read_text(encoding="utf-8")
 marker = "        if _pending_learning_task_ids and learning_space_id is not None:\n"
@@ -197,13 +273,16 @@ agent_source = agent_source.replace(
 )
 
 pending_learning_patch = """        # ACU customization: dispatch dissatisfaction for pending tasks.
-        _acu_dissatisfaction_signal = any(
-            "learning_trigger: user_dissatisfaction"
-            in message.to_string({}, truncate_chars=2048)
+        _acu_learning_signal = any(
+            marker in message.to_string({}, truncate_chars=2048)
             for message in messages
+            for marker in (
+                "learning_trigger: user_dissatisfaction",
+                "private_acu_learning_kind: film_preference_v1",
+            )
         )
         if (
-            _acu_dissatisfaction_signal
+            _acu_learning_signal
             and learning_space_id is not None
             and not _acu_dissatisfaction_dispatched
         ):
@@ -275,10 +354,10 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
                                 _pending_learning_task_ids.append(_acu_task.id)
                     _acu_dissatisfaction_dispatched = bool(_acu_learning_candidates)
 
-        if _acu_dissatisfaction_signal:
+        if _acu_learning_signal:
             # Do not also send this context through Acontext's generic
             # submit_user_preference shortcut; the failure distillation path
-            # is the ACU preference-learning path for this signal.
+            # is the ACU preference-learning path for these signals.
             _pending_preferences.clear()
 
 """

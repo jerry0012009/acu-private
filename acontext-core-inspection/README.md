@@ -15,6 +15,11 @@ distillation, and Skill learner prompts:
 
 - dissatisfaction can make a pending/running task eligible for the existing
   failure-distillation path;
+- `film_preference_v1` sessions can use the same path for a film
+  `SelectionExperience` submitted as text-only or as one text plus multiple
+  images;
+- film learning keeps multiple conditional claims from one experience and
+  updates topic-level Quality Skills;
 - learning focuses on contextual user preferences and trajectory experience,
   not technical SOPs;
 - preference documents use a short Markdown format, preserve experience IDs,
