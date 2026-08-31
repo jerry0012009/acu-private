@@ -5,6 +5,10 @@ COPY acu_learning_prompts.py /app/acontext_core/llm/prompt/acu_learning_prompts.
 COPY patch_skill_language.py /app/patch_skill_language.py
 RUN /app/.venv/bin/python /app/patch_skill_language.py
 
+COPY learning_events.py /app/acontext_core/service/learning_events.py
+COPY patch_learning_events.py /app/patch_learning_events.py
+RUN /app/.venv/bin/python /app/patch_learning_events.py
+
 COPY patch_llm_retries.py /app/patch_llm_retries.py
 RUN /app/.venv/bin/python /app/patch_llm_retries.py
 

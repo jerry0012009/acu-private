@@ -268,110 +268,76 @@ replace_once(
 )
 
 
-# Acontext only publishes task distillation for success/failed tasks. Explicit
-# Private ACU learning messages use the existing queue and persistence path.
+# Explicit Private ACU learning messages are already complete learning units.
+# Publish one synthetic failed task and skip the generic Task Agent loop.
 agent_source = TASK_AGENT_PATH.read_text(encoding="utf-8")
-publish_marker = "        if _pending_learning_task_ids and learning_space_id is not None:\n"
-if "ACU customization: dispatch explicit learning messages" in agent_source:
-    raise RuntimeError("ACU pending-task learning patch already exists")
-if publish_marker not in agent_source:
-    raise RuntimeError("Acontext task agent publish marker is unavailable")
 loop_marker = "    while already_iterations < max_iterations:\n"
+if "ACU customization: dispatch one explicit learning task" in agent_source:
+    raise RuntimeError("ACU pending-task learning patch already exists")
 if loop_marker not in agent_source:
     raise RuntimeError("Acontext task agent loop marker is unavailable")
-agent_source = agent_source.replace(
-    loop_marker,
-    "    _acu_dissatisfaction_dispatched = False\n" + loop_marker,
-    1,
-)
 
-pending_learning_patch = """        # ACU customization: dispatch explicit learning messages.
-        _acu_learning_signal = any(
-            marker in message.to_string({}, truncate_chars=2048)
-            for message in messages
-            for marker in (
-                "learning_trigger: user_dissatisfaction",
-                "private_acu_learning_kind: film_preference_v1",
-            )
+explicit_learning_patch = """    # ACU customization: dispatch one explicit learning task.
+    _acu_learning_signal = any(
+        marker in message.to_string({}, truncate_chars=2048)
+        for message in messages
+        for marker in (
+            "learning_trigger: user_dissatisfaction",
+            "private_acu_learning_kind: film_preference_v1",
         )
-        if (
-            _acu_learning_signal
-            and learning_space_id is not None
-            and not _acu_dissatisfaction_dispatched
-        ):
-            async with DB_CLIENT.get_session_context() as _acu_db_session:
-                _acu_result = await TD.fetch_current_tasks(
-                    _acu_db_session, session_id
-                )
-                _acu_tasks, _acu_eil = _acu_result.unpack()
-                _acu_planning_result = await TD.fetch_planning_task(
-                    _acu_db_session, session_id
-                )
-                _acu_planning_task, _acu_planning_eil = _acu_planning_result.unpack()
-                if not _acu_eil and not _acu_planning_eil:
-                    _acu_candidates = list(_acu_tasks)
-                    if _acu_planning_task is not None:
-                        _acu_candidates.append(_acu_planning_task)
-                    _acu_learning_candidates = [
-                        _acu_task
-                        for _acu_task in _acu_candidates
-                        if _acu_task.raw_message_ids
-                        and getattr(_acu_task.status, "value", _acu_task.status)
-                        not in ("success", "failed")
-                    ]
-                    if not _acu_learning_candidates:
-                        _acu_insert_result = await TD.insert_task(
-                            _acu_db_session,
-                            project_id,
-                            session_id,
-                            len(_acu_tasks),
-                            {
-                                "task_description": (
-                                    "user experience feedback requiring "
-                                    "preference learning"
-                                )
-                            },
-                            status="failed",
-                        )
-                        _acu_fallback_task, _acu_insert_eil = (
-                            _acu_insert_result.unpack()
-                        )
-                        if not _acu_insert_eil and _acu_fallback_task is not None:
-                            _acu_message_ids = [
-                                message.message_id for message in messages
-                            ]
-                            await TD.append_messages_to_task(
-                                _acu_db_session,
-                                _acu_message_ids,
-                                _acu_fallback_task.id,
-                            )
-                            _acu_candidates = [_acu_fallback_task]
-                            _acu_learning_candidates = [_acu_fallback_task]
-                    for _acu_task in _acu_candidates:
-                        _acu_status = getattr(_acu_task.status, "value", _acu_task.status)
-                        if (
-                            _acu_status not in ("success", "failed")
-                            and _acu_task.raw_message_ids
-                        ):
-                            await TD.update_task(
-                                _acu_db_session, _acu_task.id, status="failed"
-                            )
-                            if _acu_task.id not in _pending_learning_task_ids:
-                                _pending_learning_task_ids.append(_acu_task.id)
-                    if _acu_learning_candidates:
-                        for _acu_task in _acu_learning_candidates:
-                            if _acu_task.id not in _pending_learning_task_ids:
-                                _pending_learning_task_ids.append(_acu_task.id)
-                    _acu_dissatisfaction_dispatched = bool(_acu_learning_candidates)
-
-        if _acu_learning_signal:
-            # Do not also send this context through Acontext's generic
-            # submit_user_preference shortcut; the failure distillation path
-            # is the ACU preference-learning path for these signals.
-            _pending_preferences.clear()
+    )
+    if _acu_learning_signal and learning_space_id is not None:
+        async with DB_CLIENT.get_session_context() as _acu_db_session:
+            _acu_result = await TD.fetch_current_tasks(
+                _acu_db_session, session_id
+            )
+            _acu_tasks, _acu_eil = _acu_result.unpack()
+            if _acu_eil:
+                return Result.reject(str(_acu_eil))
+            _acu_insert_result = await TD.insert_task(
+                _acu_db_session,
+                project_id,
+                session_id,
+                len(_acu_tasks),
+                {
+                    "task_description": (
+                        "Private ACU explicit preference learning"
+                    )
+                },
+                status="failed",
+            )
+            _acu_task, _acu_insert_eil = _acu_insert_result.unpack()
+            if _acu_insert_eil or _acu_task is None:
+                return Result.reject(str(_acu_insert_eil))
+            await TD.append_messages_to_task(
+                _acu_db_session,
+                [message.message_id for message in messages],
+                _acu_task.id,
+            )
+        try:
+            await publish_mq(
+                EX.learning_skill,
+                RK.learning_skill_distill,
+                SkillLearnTask(
+                    project_id=project_id,
+                    session_id=session_id,
+                    task_id=_acu_task.id,
+                ).model_dump_json(),
+            )
+        except Exception:
+            LOG.error(
+                "task_agent.publish_learning_failed",
+                task_id=str(_acu_task.id),
+            )
+            return Result.reject("Failed to publish explicit Private ACU learning")
+        wide["agent_iterations"] = 0
+        wide["llm_calls"] = 0
+        wide["tools_called"] = []
+        wide["task_count"] = 1
+        return Result.resolve(None)
 
 """
 TASK_AGENT_PATH.write_text(
-    agent_source.replace(publish_marker, pending_learning_patch + publish_marker, 1),
+    agent_source.replace(loop_marker, explicit_learning_patch + loop_marker, 1),
     encoding="utf-8",
 )
