@@ -1,7 +1,9 @@
 # ACU Private Acontext Adapter
 
-This repository is the single source of truth for ACU's Acontext Core
-integration:
+This repository is the single source of truth for the one Acontext Core
+service used by ACU Private. Ordinary Private ACU Learning and the film POC
+run in this same service and are separated by Learning Space-bound prompts and
+data, not by separate Acontext deployments.
 
 - Acontext Core wrapper image;
 - Learning Space-bound prompt sets;
@@ -12,7 +14,7 @@ Repository boundaries:
 
 ```text
 acu-private
-  Acontext Core adapter and learning internals
+  the one Acontext Core service, adapter, and learning internals
 
 acu-router
   Private ACU orchestration, ingress, persistence, relay, and admin APIs
