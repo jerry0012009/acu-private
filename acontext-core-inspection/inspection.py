@@ -9,6 +9,7 @@ PROMPT_FILES = (
     "task.py",
     "skill_learner.py",
     "skill_distillation.py",
+    "acu_learning_prompts.py",
 )
 
 

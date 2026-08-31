@@ -2,194 +2,61 @@ from pathlib import Path
 
 
 PROMPT_ROOT = Path("/app/acontext_core/llm/prompt")
-LANGUAGE_POLICY = (
-    "Use the user's dominant language for distilled learning and all learned "
-    "preference descriptions and content. Preserve code and machine-readable identifiers."
+TASK_AGENT_PATH = Path("/app/acontext_core/llm/agent/task.py")
+SKILL_AGENT_PATH = Path("/app/acontext_core/llm/agent/skill_learner.py")
+DISTILL_CONTROLLER_PATH = Path(
+    "/app/acontext_core/service/controller/skill_learner.py"
+)
+DISTILL_TOOL_PATH = Path(
+    "/app/acontext_core/llm/tool/skill_learner_lib/distill.py"
 )
 
-ACU_TASK_POLICY = """
 
-## ACU Preference Learning
-When the input contains `learning_trigger: user_dissatisfaction`, this is an
-explicit signal that the user has rejected, corrected, or redirected the
-previous direction from a user-experience perspective.
+def append_once(path: Path, sentinel: str, patch: str) -> None:
+    source = path.read_text(encoding="utf-8")
+    if sentinel in source:
+        raise RuntimeError(f"ACU patch already exists in {path}")
+    path.write_text(source.rstrip() + patch, encoding="utf-8")
 
-- Do not wait for the task to become technically complete before recording the
-  learning signal.
-- Treat a pending or running task with this signal as an experience that needs
-  learning. Link the relevant messages, record the user's contextual
-  correction, and let the ACU adapter dispatch it for preference distillation.
-- This is not permission to invent a long-term preference from one ambiguous
-  sentence. Prefer evidence about the user's goal, current stage, trade-off,
-  rejected alternative, and reason.
-- Do not turn the signal into a generic technical SOP.
-"""
 
-ACU_FILM_TASK_POLICY = """
+def replace_once(path: Path, old: str, new: str) -> None:
+    source = path.read_text(encoding="utf-8")
+    if old not in source:
+        raise RuntimeError(f"Acontext source marker is unavailable in {path}: {old[:80]!r}")
+    path.write_text(source.replace(old, new, 1), encoding="utf-8")
 
-## ACU Film Preference Learning
-When the input contains `private_acu_learning_kind: film_preference_v1`, the
-message is a single film SelectionExperience submitted for preference
-learning. The message may contain text only or one or more images in the same
-OpenAI-compatible user message.
 
-- Treat the SelectionExperience as the complete learning unit.
-- Preserve its quality_context, film_language_analysis, team decision,
-  good_points, missing_points, and rejection_reason.
-- Extract multiple conditional LearningClaims when the evidence supports
-  multiple visual-language topics.
-- Keep rules conditional on scene, character, relationship, narrative purpose,
-  emotion, and production context.
-- Use the existing Learning Space and update topic-level Quality Skills.
-"""
+append_once(
+    PROMPT_ROOT / "task.py",
+    "ACU customization: select prompts by Learning Space",
+    '''
 
-ACU_DISTILLATION_POLICY = """
+# ACU customization: select prompts by Learning Space.
+from .acu_learning_prompts import task_prompt_for_space as _acu_task_prompt_for_space
 
-## ACU Trajectory Preference Distillation
-When the input contains `learning_trigger: user_dissatisfaction`, distill the
-user-experience difference rather than a technical implementation recipe.
-
-Identify, when supported by the evidence:
-- the user's goal, stage, and concrete situation;
-- what direction the agent took and what direction the user wanted instead;
-- what user characteristic or preference is revealed in that situation;
-- why the user preferred one option over the alternative;
-- a generalized trajectory rule describing when this preference should be
-  recalled in future work.
-
-The useful abstraction is:
-`situation -> user preference/characteristic -> reason/trade-off -> reusable reminder`.
-Do not over-generalize from a single fact or turn the result into a task log.
-Keep the exact `experience_id` from the ACU learning signal in the distilled
-result, preferably in `applies_when`, so the Skill Agent can preserve evidence.
-If the evidence does not support a reusable preference, skip learning.
-"""
-
-ACU_FILM_DISTILLATION_POLICY = """
-
-## ACU Film Distillation
-When the input contains `private_acu_learning_kind: film_preference_v1`:
-
-- Distill the single SelectionExperience into one or more LearningClaims.
-- A LearningClaim has: topic, applies_when, prefer, avoid, why, and
-  example_ref.
-- Use the submitted image or images as visual evidence when present.
-- Preserve the exact `experience_id` in every applicable claim.
-- Keep apparently conflicting visual choices as separate conditional rules
-  when their narrative conditions differ.
-- The output can cover multiple topics, including lighting, color,
-  composition, shot, camera, mise-en-scene, character and relationship, and
-  visual emotion.
-- Do not produce a production task log or generic technical SOP.
-"""
-
-ACU_SKILL_POLICY = """
-
-## ACU Preference Documents
-For ACU dissatisfaction contexts, learned Skills are concise user-preference
-documents, not a technical SOP library.
-
-Each preference document must stay within 1500 characters and contain:
-
-```markdown
----
-name: "preference-title"
-description: "Short description of the preference."
-type: user_preference
-experience_id: exp-...
-related_experience_ids:
-  - exp-...
----
-
-# Preference title
-
-## Description
-Short description of the preference.
-
-## Why
-The situation, user characteristic or preference, and reason for the choice.
-
-## Advisor guidance
-The short reminder to use when a similar trajectory appears.
-```
-
-For an ACU dissatisfaction context, each distinct reusable preference must be
-stored as its own top-level Skill. Do not write it into Acontext's built-in
-`daily-logs` or `user-general-facts` Skills, and do not use those generic Skills
-as the catalog title for an ACU preference. Create or update a dedicated Skill
-whose `name` and `description` identify that preference directly; its `SKILL.md`
-is the preference document above.
-
-Before creating or updating a document, inspect related existing Skills. Treat
-the whole learning space as one evolving user-preference picture:
-
-- Prefer updating a related preference over creating a duplicate.
-- Generalize from the situation and reason, not from a one-off implementation.
-- When preferences conflict, first test whether they are conditional on
-  different goals, stages, risk levels, or contexts; merge those conditions
-  into one coherent preference when possible.
-- If the user genuinely changed preference, revise the old document rather than
-  appending contradictory entries. Preserve only a small number of relevant
-  related experience IDs.
-- Remove obsolete or duplicated entries from the document while keeping it
-  under the character limit.
-- Do not infer a personality trait without evidence and do not create a
-  separate profile database.
-"""
-
-ACU_FILM_SKILL_POLICY = """
-
-## ACU Film Quality Skills
-When the input contains `private_acu_learning_kind: film_preference_v1`:
-
-- Store or update topic-level Quality Skills from the submitted claims.
-- Each Skill catalog entry must have a clear title/name and description.
-- The Skill body must retain conditional rules under Applies When, Prefer,
-  Avoid, Why, and Examples.
-- Keep different directions for the same visual dimension when they apply to
-  different narrative or character conditions.
-- One SelectionExperience may update multiple topic Skills.
-"""
-
-ACU_FILM_SEED_CATALOG = """
-
-## ACU Film Seed Skill Catalog
-Use these topic-level Skills as the initial film-v1 catalog:
-
-- film-language-overview: Film visual language as a connected system.
-- film-language-narrative-context: Scene purpose, dramatic function, and constraints.
-- film-language-character-and-relationship: Character state, relationship, and distance.
-- film-language-lighting: Light direction, contrast, softness, and exposure.
-- film-language-color: Color temperature, saturation, palette, and contrast.
-- film-language-shot-and-composition: Shot size, framing, balance, and negative space.
-- film-language-camera: Camera position, movement, lens impression, and viewpoint.
-- film-language-mise-en-scene: Space, objects, blocking, and visual hierarchy.
-- film-language-visual-emotion: Visual choices that shape audience emotion.
-- film-language-integration: Combinations of visual choices serving one narrative goal.
-
-Create or update only the topic Skills supported by the current claims. Keep
-the catalog title and description specific to the topic, and keep learned
-rules conditional on the submitted context.
-"""
-
-PATCHES = {
-    "task.py": f'''
-
-# ACU customization: allow explicit dissatisfaction to enter preference learning.
 _acu_original_task_system_prompt = TaskPrompt.system_prompt
 
 
-def _acu_preference_task_system_prompt(cls) -> str:
-    return _acu_original_task_system_prompt() + """{ACU_TASK_POLICY}
-{ACU_FILM_TASK_POLICY}
-"""
+def _acu_space_bound_task_system_prompt(cls, learning_space_id=None) -> str:
+    return _acu_task_prompt_for_space(
+        _acu_original_task_system_prompt(), learning_space_id
+    )
 
 
-TaskPrompt.system_prompt = classmethod(_acu_preference_task_system_prompt)
+TaskPrompt.system_prompt = classmethod(_acu_space_bound_task_system_prompt)
 ''',
-    "skill_distillation.py": f'''
+)
 
-# ACU customization: distill trajectory preferences instead of technical SOPs.
+append_once(
+    PROMPT_ROOT / "skill_distillation.py",
+    "ACU customization: select distillation prompts by Learning Space",
+    '''
+
+# ACU customization: select distillation prompts by Learning Space.
+from .acu_learning_prompts import (
+    distillation_prompt_for_space as _acu_distillation_prompt_for_space,
+)
+
 _acu_original_success_distillation_prompt = (
     SkillDistillationPrompt.success_distillation_prompt
 )
@@ -198,70 +65,216 @@ _acu_original_failure_distillation_prompt = (
 )
 
 
-def _acu_language_aware_success_prompt(cls) -> str:
-    return _acu_original_success_distillation_prompt() + """
-## Skill Language
-{LANGUAGE_POLICY}
-{ACU_DISTILLATION_POLICY}
-{ACU_FILM_DISTILLATION_POLICY}
-"""
+def _acu_space_bound_success_prompt(cls, learning_space_id=None) -> str:
+    return _acu_distillation_prompt_for_space(
+        _acu_original_success_distillation_prompt(), learning_space_id
+    )
 
 
-def _acu_language_aware_failure_prompt(cls) -> str:
-    return _acu_original_failure_distillation_prompt() + """
-## Skill Language
-{LANGUAGE_POLICY}
-{ACU_DISTILLATION_POLICY}
-{ACU_FILM_DISTILLATION_POLICY}
-"""
+def _acu_space_bound_failure_prompt(cls, learning_space_id=None) -> str:
+    return _acu_distillation_prompt_for_space(
+        _acu_original_failure_distillation_prompt(), learning_space_id
+    )
 
 
 SkillDistillationPrompt.success_distillation_prompt = classmethod(
-    _acu_language_aware_success_prompt
+    _acu_space_bound_success_prompt
 )
 SkillDistillationPrompt.failure_distillation_prompt = classmethod(
-    _acu_language_aware_failure_prompt
+    _acu_space_bound_failure_prompt
 )
 ''',
-    "skill_learner.py": f'''
+)
 
-# ACU customization: store concise, contextual user preferences.
-_acu_original_system_prompt = SkillLearnerPrompt.system_prompt
+append_once(
+    PROMPT_ROOT / "skill_learner.py",
+    "ACU customization: select Skill Learner prompts by Learning Space",
+    '''
+
+# ACU customization: select Skill Learner prompts by Learning Space.
+from .acu_learning_prompts import (
+    skill_learner_prompt_for_space as _acu_skill_learner_prompt_for_space,
+)
+
+_acu_original_skill_learner_system_prompt = SkillLearnerPrompt.system_prompt
 
 
-def _acu_preference_skill_system_prompt(cls) -> str:
-    return _acu_original_system_prompt() + """
-## Skill Language
-{LANGUAGE_POLICY}
-{ACU_SKILL_POLICY}
-{ACU_FILM_SKILL_POLICY}
-{ACU_FILM_SEED_CATALOG}
-"""
+def _acu_space_bound_skill_learner_system_prompt(
+    cls, learning_space_id=None
+) -> str:
+    return _acu_skill_learner_prompt_for_space(
+        _acu_original_skill_learner_system_prompt(), learning_space_id
+    )
 
 
-SkillLearnerPrompt.system_prompt = classmethod(_acu_preference_skill_system_prompt)
+SkillLearnerPrompt.system_prompt = classmethod(
+    _acu_space_bound_skill_learner_system_prompt
+)
 ''',
-}
+)
 
 
-for filename, patch in PATCHES.items():
-    path = PROMPT_ROOT / filename
-    source = path.read_text(encoding="utf-8")
-    if "## Skill Language" in source:
-        raise RuntimeError(f"ACU prompt patch already exists in {filename}")
-    path.write_text(source.rstrip() + patch, encoding="utf-8")
+# Every Acontext stage already carries learning_space_id. Pass it directly to
+# the prompt selector instead of inferring learning behavior from message text.
+replace_once(
+    TASK_AGENT_PATH,
+    "            system_prompt=TaskPrompt.system_prompt(),\n",
+    "            system_prompt=TaskPrompt.system_prompt(learning_space_id),\n",
+)
+replace_once(
+    DISTILL_CONTROLLER_PATH,
+    "        distill_system_prompt = SkillDistillationPrompt.success_distillation_prompt()\n",
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.success_distillation_prompt(learning_space_id)\n"
+    "        )\n",
+)
+replace_once(
+    DISTILL_CONTROLLER_PATH,
+    "        distill_system_prompt = SkillDistillationPrompt.failure_distillation_prompt()\n",
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.failure_distillation_prompt(learning_space_id)\n"
+    "        )\n",
+)
+replace_once(
+    SKILL_AGENT_PATH,
+    "                system_prompt=SkillLearnerPrompt.system_prompt(),\n",
+    "                system_prompt=SkillLearnerPrompt.system_prompt(learning_space_id),\n",
+)
+
+# Film distillation has a structured claim tool. Ordinary Space calls retain
+# the upstream success, factual, failure, and skip tools.
+append_once(
+    DISTILL_TOOL_PATH,
+    "ACU customization: structured film LearningClaim output",
+    '''
+
+# ACU customization: structured film LearningClaim output.
+from ...prompt.acu_learning_prompts import (
+    FILM_DISTILL_TOOL_FUNCTION as _ACU_FILM_DISTILL_TOOL_FUNCTION,
+)
+
+DISTILL_FILM_TOOL = ToolSchema(function=_ACU_FILM_DISTILL_TOOL_FUNCTION)
+_acu_original_extract_distillation_result = extract_distillation_result
 
 
-# Acontext only publishes task distillation for success/failed tasks. Make an
-# explicitly marked ACU learning session eligible for the existing
-# failure-distillation pipeline. This keeps the change inside the wrapper and
-# does not add a new queue or persistence model.
-AGENT_TASK_PATH = Path("/app/acontext_core/llm/agent/task.py")
-agent_source = AGENT_TASK_PATH.read_text(encoding="utf-8")
-marker = "        if _pending_learning_task_ids and learning_space_id is not None:\n"
-if "ACU customization: dispatch dissatisfaction for pending tasks" in agent_source:
+def extract_distillation_result(llm_return: LLMResponse) -> Result[DistillationOutcome]:
+    if (
+        not llm_return.tool_calls
+        or llm_return.tool_calls[0].function is None
+        or llm_return.tool_calls[0].function.name != "report_film_learning_claims"
+    ):
+        return _acu_original_extract_distillation_result(llm_return)
+
+    args = llm_return.tool_calls[0].function.arguments
+    experience_id = args.get("experience_id")
+    evidence_summary = args.get("evidence_summary")
+    claims = args.get("claims")
+    if not isinstance(experience_id, str) or not experience_id.strip():
+        return Result.reject("Missing required field: experience_id")
+    if not isinstance(evidence_summary, str) or not evidence_summary.strip():
+        return Result.reject("Missing required field: evidence_summary")
+    if not isinstance(claims, list) or not claims:
+        return Result.reject("Missing required field: claims")
+
+    required_fields = (
+        "topic",
+        "applies_when",
+        "prefer",
+        "avoid",
+        "why",
+        "example_ref",
+    )
+    lines = [
+        "private_acu_learning_kind: film_preference_v1",
+        "## Film Learning Claims",
+        f"**Experience ID:** {experience_id}",
+        f"**Evidence Summary:** {evidence_summary}",
+    ]
+    for index, claim in enumerate(claims, 1):
+        if not isinstance(claim, dict):
+            return Result.reject(f"Claim {index} must be an object")
+        for field in required_fields:
+            if not isinstance(claim.get(field), str):
+                return Result.reject(f"Claim {index} missing required field: {field}")
+        lines.extend(
+            [
+                f"### Claim {index}",
+                f"**Topic:** {claim['topic']}",
+                f"**Applies When:** {claim['applies_when']}",
+                f"**Prefer:** {claim['prefer']}",
+                f"**Avoid:** {claim['avoid']}",
+                f"**Why:** {claim['why']}",
+                f"**Example Ref:** {claim['example_ref']}",
+            ]
+        )
+
+    return Result.resolve(
+        DistillationOutcome(
+            is_worth_learning=True,
+            distilled_text="\\n".join(lines),
+        )
+    )
+''',
+)
+replace_once(
+    DISTILL_CONTROLLER_PATH,
+    "    DISTILL_FAILURE_TOOL,\n"
+    "    extract_distillation_result,\n",
+    "    DISTILL_FAILURE_TOOL,\n"
+    "    DISTILL_FILM_TOOL,\n"
+    "    extract_distillation_result,\n",
+)
+replace_once(
+    DISTILL_CONTROLLER_PATH,
+    "from ...llm.prompt.skill_distillation import SkillDistillationPrompt\n",
+    "from ...llm.prompt.skill_distillation import SkillDistillationPrompt\n"
+    "from ...llm.prompt.acu_learning_prompts import is_film_space\n",
+)
+replace_once(
+    DISTILL_CONTROLLER_PATH,
+    "    if finished_task.status == TaskStatus.SUCCESS:\n"
+    "        tools = [\n"
+    "            DISTILL_SKIP_TOOL.model_dump(),\n"
+    "            DISTILL_SUCCESS_TOOL.model_dump(),\n"
+    "            DISTILL_FACTUAL_TOOL.model_dump(),\n"
+    "        ]\n"
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.success_distillation_prompt(learning_space_id)\n"
+    "        )\n"
+    "    else:\n"
+    "        tools = [DISTILL_FAILURE_TOOL.model_dump()]\n"
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.failure_distillation_prompt(learning_space_id)\n"
+    "        )\n",
+    "    if is_film_space(learning_space_id):\n"
+    "        tools = [DISTILL_FILM_TOOL.model_dump()]\n"
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.failure_distillation_prompt(learning_space_id)\n"
+    "        )\n"
+    "    elif finished_task.status == TaskStatus.SUCCESS:\n"
+    "        tools = [\n"
+    "            DISTILL_SKIP_TOOL.model_dump(),\n"
+    "            DISTILL_SUCCESS_TOOL.model_dump(),\n"
+    "            DISTILL_FACTUAL_TOOL.model_dump(),\n"
+    "        ]\n"
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.success_distillation_prompt(learning_space_id)\n"
+    "        )\n"
+    "    else:\n"
+    "        tools = [DISTILL_FAILURE_TOOL.model_dump()]\n"
+    "        distill_system_prompt = (\n"
+    "            SkillDistillationPrompt.failure_distillation_prompt(learning_space_id)\n"
+    "        )\n",
+)
+
+
+# Acontext only publishes task distillation for success/failed tasks. Explicit
+# Private ACU learning messages use the existing queue and persistence path.
+agent_source = TASK_AGENT_PATH.read_text(encoding="utf-8")
+publish_marker = "        if _pending_learning_task_ids and learning_space_id is not None:\n"
+if "ACU customization: dispatch explicit learning messages" in agent_source:
     raise RuntimeError("ACU pending-task learning patch already exists")
-if marker not in agent_source:
+if publish_marker not in agent_source:
     raise RuntimeError("Acontext task agent publish marker is unavailable")
 loop_marker = "    while already_iterations < max_iterations:\n"
 if loop_marker not in agent_source:
@@ -272,7 +285,7 @@ agent_source = agent_source.replace(
     1,
 )
 
-pending_learning_patch = """        # ACU customization: dispatch dissatisfaction for pending tasks.
+pending_learning_patch = """        # ACU customization: dispatch explicit learning messages.
         _acu_learning_signal = any(
             marker in message.to_string({}, truncate_chars=2048)
             for message in messages
@@ -307,9 +320,6 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
                         not in ("success", "failed")
                     ]
                     if not _acu_learning_candidates:
-                        # Distillation's existing loader only includes ordinary
-                        # tasks, so use one ordinary failed task as the smallest
-                        # bridge for a fresh dissatisfaction-only session.
                         _acu_insert_result = await TD.insert_task(
                             _acu_db_session,
                             project_id,
@@ -361,7 +371,7 @@ pending_learning_patch = """        # ACU customization: dispatch dissatisfactio
             _pending_preferences.clear()
 
 """
-AGENT_TASK_PATH.write_text(
-    agent_source.replace(marker, pending_learning_patch + marker, 1),
+TASK_AGENT_PATH.write_text(
+    agent_source.replace(publish_marker, pending_learning_patch + publish_marker, 1),
     encoding="utf-8",
 )

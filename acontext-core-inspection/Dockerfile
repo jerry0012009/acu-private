@@ -1,5 +1,7 @@
 FROM ghcr.io/memodb-io/acontext-core:latest
 
+COPY acu_learning_prompts.py /app/acontext_core/llm/prompt/acu_learning_prompts.py
+
 COPY patch_skill_language.py /app/patch_skill_language.py
 RUN /app/.venv/bin/python /app/patch_skill_language.py
 
