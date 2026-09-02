@@ -4,6 +4,22 @@ from pathlib import Path
 PROMPT_ROOT = Path("/app/acontext_core/llm/prompt")
 TASK_AGENT_PATH = Path("/app/acontext_core/llm/agent/task.py")
 SKILL_AGENT_PATH = Path("/app/acontext_core/llm/agent/skill_learner.py")
+SKILL_CTX_PATH = Path("/app/acontext_core/llm/tool/skill_learner_lib/ctx.py")
+STR_REPLACE_TOOL_PATH = Path(
+    "/app/acontext_core/llm/tool/skill_learner_lib/str_replace_skill_file.py"
+)
+CREATE_SKILL_TOOL_PATH = Path(
+    "/app/acontext_core/llm/tool/skill_learner_lib/create_skill.py"
+)
+CREATE_FILE_TOOL_PATH = Path(
+    "/app/acontext_core/llm/tool/skill_learner_lib/create_skill_file.py"
+)
+DELETE_FILE_TOOL_PATH = Path(
+    "/app/acontext_core/llm/tool/skill_learner_lib/delete_skill_file.py"
+)
+MOVE_FILE_TOOL_PATH = Path(
+    "/app/acontext_core/llm/tool/skill_learner_lib/mv_skill_file.py"
+)
 DISTILL_CONTROLLER_PATH = Path(
     "/app/acontext_core/service/controller/skill_learner.py"
 )
@@ -139,6 +155,204 @@ replace_once(
     SKILL_AGENT_PATH,
     "                system_prompt=SkillLearnerPrompt.system_prompt(),\n",
     "                system_prompt=SkillLearnerPrompt.system_prompt(learning_space_id),\n",
+)
+
+# Film POC writes are bounded in the tool layer as well as in the prompt. The
+# budget is applied only when the current Learning Space is the configured
+# film space, so ordinary Private ACU learning keeps the upstream behavior.
+replace_once(
+    SKILL_CTX_PATH,
+    "    has_reported_thinking: bool = False\n",
+    "    has_reported_thinking: bool = False\n"
+    "    skill_write_names: set[str] = field(default_factory=set)\n"
+    "    max_skill_writes: int | None = None\n"
+    "    created_skill_names: set[str] = field(default_factory=set)\n"
+    "    max_new_skills: int | None = None\n",
+)
+append_once(
+    SKILL_CTX_PATH,
+    "ACU customization: bound film skill write budget",
+    '''
+
+# ACU customization: bound film skill write budget.
+def claim_skill_write(ctx: SkillLearnerCtx, skill_name: str) -> str | None:
+    if ctx.max_skill_writes is None or skill_name in ctx.skill_write_names:
+        return None
+    if len(ctx.skill_write_names) >= ctx.max_skill_writes:
+        return (
+            f"This Learning Space allows at most {ctx.max_skill_writes} "
+            "Skill writes in one learner run. Merge the remaining claims into "
+            "the selected Skills or finish."
+        )
+    ctx.skill_write_names.add(skill_name)
+    return None
+
+
+def claim_new_skill(ctx: SkillLearnerCtx, skill_name: str) -> str | None:
+    if (
+        ctx.max_new_skills is not None
+        and len(ctx.created_skill_names) >= ctx.max_new_skills
+    ):
+        return (
+            f"This Learning Space allows at most {ctx.max_new_skills} "
+            "new Skill in one learner run. Reuse an existing Skill or finish."
+        )
+    error = claim_skill_write(ctx, skill_name)
+    if error:
+        return error
+    ctx.created_skill_names.add(skill_name)
+    return None
+
+
+def release_new_skill(ctx: SkillLearnerCtx, skill_name: str) -> None:
+    ctx.created_skill_names.discard(skill_name)
+    ctx.skill_write_names.discard(skill_name)
+''',
+)
+
+replace_once(
+    SKILL_AGENT_PATH,
+    "from ...service.data.learning_space import SkillInfo\n",
+    "from ...service.data.learning_space import SkillInfo\n"
+    "from ...llm.prompt.acu_learning_prompts import (\n"
+    "    FILM_MAX_NEW_SKILLS,\n"
+    "    FILM_MAX_SKILL_WRITES,\n"
+    "    is_film_space,\n"
+    ")\n",
+)
+replace_once(
+    SKILL_AGENT_PATH,
+    "    has_reported_thinking = False\n",
+    "    has_reported_thinking = False\n"
+    "    skill_write_names: set[str] = set()\n"
+    "    created_skill_names: set[str] = set()\n"
+    "    max_skill_writes = (\n"
+    "        FILM_MAX_SKILL_WRITES if is_film_space(learning_space_id) else None\n"
+    "    )\n"
+    "    max_new_skills = (\n"
+    "        FILM_MAX_NEW_SKILLS if is_film_space(learning_space_id) else None\n"
+    "    )\n",
+)
+replace_once(
+    SKILL_AGENT_PATH,
+    "                    has_reported_thinking=has_reported_thinking,\n",
+    "                    has_reported_thinking=has_reported_thinking,\n"
+    "                    skill_write_names=skill_write_names,\n"
+    "                    max_skill_writes=max_skill_writes,\n"
+    "                    created_skill_names=created_skill_names,\n"
+    "                    max_new_skills=max_new_skills,\n",
+)
+replace_once(
+    SKILL_AGENT_PATH,
+    '    wide["lock_renewed_count"] = lock_renewed_count\n',
+    '    wide["lock_renewed_count"] = lock_renewed_count\n'
+    '    wide["skill_write_limit"] = max_skill_writes\n'
+    '    wide["skill_writes_used"] = len(skill_write_names)\n'
+    '    wide["new_skills_used"] = len(created_skill_names)\n',
+)
+
+replace_once(
+    STR_REPLACE_TOOL_PATH,
+    "from .ctx import SkillLearnerCtx\n",
+    "from .ctx import SkillLearnerCtx, claim_skill_write\n",
+)
+replace_once(
+    STR_REPLACE_TOOL_PATH,
+    "    asset_meta, new_artifact_info_meta = await upload_and_build_artifact_meta(\n",
+    "    write_error = claim_skill_write(ctx, skill_name)\n"
+    "    if write_error:\n"
+    "        return Result.resolve(write_error)\n"
+    "\n"
+    "    asset_meta, new_artifact_info_meta = await upload_and_build_artifact_meta(\n",
+)
+
+replace_once(
+    CREATE_FILE_TOOL_PATH,
+    "from .ctx import SkillLearnerCtx\n",
+    "from .ctx import SkillLearnerCtx, claim_skill_write\n",
+)
+replace_once(
+    CREATE_FILE_TOOL_PATH,
+    "    asset_meta, meta = await upload_and_build_artifact_meta(\n",
+    "    write_error = claim_skill_write(ctx, skill_name)\n"
+    "    if write_error:\n"
+    "        return Result.resolve(write_error)\n"
+    "\n"
+    "    asset_meta, meta = await upload_and_build_artifact_meta(\n",
+)
+
+replace_once(
+    DELETE_FILE_TOOL_PATH,
+    "from .ctx import SkillLearnerCtx\n",
+    "from .ctx import SkillLearnerCtx, claim_skill_write\n",
+)
+replace_once(
+    DELETE_FILE_TOOL_PATH,
+    "    r = await delete_artifact_by_path(ctx.db_session, skill.disk_id, path, filename)\n",
+    "    write_error = claim_skill_write(ctx, skill_name)\n"
+    "    if write_error:\n"
+    "        return Result.resolve(write_error)\n"
+    "\n"
+    "    r = await delete_artifact_by_path(ctx.db_session, skill.disk_id, path, filename)\n",
+)
+
+replace_once(
+    MOVE_FILE_TOOL_PATH,
+    "from .ctx import SkillLearnerCtx\n",
+    "from .ctx import SkillLearnerCtx, claim_skill_write\n",
+)
+replace_once(
+    MOVE_FILE_TOOL_PATH,
+    "    # Move by updating path and filename on the ORM object\n",
+    "    write_error = claim_skill_write(ctx, skill_name)\n"
+    "    if write_error:\n"
+    "        return Result.resolve(write_error)\n"
+    "\n"
+    "    # Move by updating path and filename on the ORM object\n",
+)
+
+replace_once(
+    CREATE_SKILL_TOOL_PATH,
+    "from ....service.data.agent_skill import create_skill as db_create_skill\n",
+    "from ....service.data.agent_skill import (\n"
+    "    _parse_skill_md,\n"
+    "    create_skill as db_create_skill,\n"
+    ")\n",
+)
+replace_once(
+    CREATE_SKILL_TOOL_PATH,
+    "from .ctx import SkillLearnerCtx\n",
+    "from .ctx import SkillLearnerCtx, claim_new_skill, release_new_skill\n",
+)
+replace_once(
+    CREATE_SKILL_TOOL_PATH,
+    "    # Create skill (Disk + AgentSkill + SKILL.md artifact)\n",
+    "    try:\n"
+    "        new_skill_name, _ = _parse_skill_md(skill_md_content)\n"
+    "    except Exception as e:\n"
+    "        return Result.resolve(f\"Invalid SKILL.md content: {e}\")\n"
+    "\n"
+    "    write_error = claim_new_skill(ctx, new_skill_name)\n"
+    "    if write_error:\n"
+    "        return Result.resolve(write_error)\n"
+    "\n"
+    "    # Create skill (Disk + AgentSkill + SKILL.md artifact)\n",
+)
+replace_once(
+    CREATE_SKILL_TOOL_PATH,
+    "    if eil:\n"
+    "        return Result.resolve(f\"Failed to create skill: {eil}\")\n",
+    "    if eil:\n"
+    "        release_new_skill(ctx, new_skill_name)\n"
+    "        return Result.resolve(f\"Failed to create skill: {eil}\")\n",
+)
+replace_once(
+    CREATE_SKILL_TOOL_PATH,
+    "    if eil:\n"
+    "        return Result.resolve(f\"Failed to add skill to learning space: {eil}\")\n",
+    "    if eil:\n"
+    "        release_new_skill(ctx, new_skill_name)\n"
+    "        return Result.resolve(f\"Failed to add skill to learning space: {eil}\")\n",
 )
 
 # Film distillation has a structured claim tool. Ordinary Space calls retain

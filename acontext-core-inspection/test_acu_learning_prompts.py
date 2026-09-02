@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 from acu_learning_prompts import (
     FILM_SPACE_ENV,
+    FILM_MAX_NEW_SKILLS,
+    FILM_MAX_SKILL_WRITES,
     account_prompt_examples,
     distillation_prompt_for_space,
     film_prompt_cards,
@@ -70,8 +72,10 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
             prompt = skill_learner_prompt_for_space("BASE SKILL", FILM_SPACE_ID)
 
         self.assertIn("当前 Learning Space 实时提供的 Skill catalog", prompt)
-        self.assertIn("最多选择 3 个", prompt)
+        self.assertIn("最多实际更新 3 个", prompt)
         self.assertIn("最多创建 1 个新 Skill", prompt)
+        self.assertEqual(FILM_MAX_SKILL_WRITES, 3)
+        self.assertEqual(FILM_MAX_NEW_SKILLS, 1)
         self.assertIn("不要使用提示词中预设的 Skill 名称或固定主题目录", prompt)
         self.assertNotIn("film-language-lighting：", prompt)
         self.assertNotIn("film-language-color：", prompt)

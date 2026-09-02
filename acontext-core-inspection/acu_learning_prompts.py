@@ -3,6 +3,8 @@ from copy import deepcopy
 
 
 FILM_SPACE_ENV = "ACU_FILM_LEARNING_SPACE_ID"
+FILM_MAX_SKILL_WRITES = 3
+FILM_MAX_NEW_SKILLS = 1
 FILM_REFERENCE_IMAGE_URL = (
     "https://upload.wikimedia.org/wikipedia/commons/d/d4/"
     "The_Cabinet_of_Dr_Caligari_Holstenwall.jpg"
@@ -145,17 +147,17 @@ FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。当
 属于已配置的影视 Learning Space。根据蒸馏结果更新影视主题级 Quality Skill。
 
 输入中的 Available Skills 是当前 Learning Space 实时提供的 Skill catalog，
-每一项包含 Skill 的 name/title 和 description。以这份 catalog 为准判断归属，
-不要使用提示词中预设的 Skill 名称或固定主题目录。
+每一项包含 Skill 的准确 `name`（标题）和 `description`。先根据这份 catalog
+判断归属，调用工具时使用 catalog 中的准确 Skill name；不要使用提示词中预设的 Skill 名称或固定主题目录。
 
-从当前 catalog 中选择与本条蒸馏结果最相关的 Skill，最多选择 3 个。优先复用
-已有 Skill；只有当前 catalog 没有能够承载该学习点的 Skill 时，才创建新的
-Quality Skill，单条 Experience 最多创建 1 个新 Skill。不要编辑或创建
+从当前 catalog 中选择与本条蒸馏结果最相关的 Skill，最多实际更新 3 个。优先
+复用已有 Skill；只有当前 catalog 没有能够承载该学习点的 Skill 时，才创建新的
+Quality Skill，单次 Learner 运行最多创建 1 个新 Skill。不要编辑或创建
 `daily-logs`、`user-general-facts` 等通用系统 Skill。
 
 编辑 Skill 前先读取该 Skill 的 `SKILL.md`。多个 LearningClaim 如果服务于
 同一个剧本语境、人物目标或叙事目的，应先合并为一组条件化规则，再写入最相关
-的 1-3 个 Skill。每次 Experience 的写入范围最多为 3 个 Skill；不要为了覆盖
+的 1-3 个 Skill。单次 Learner 运行的写入范围最多为 3 个 Skill；不要为了覆盖
 每个 Claim 的 topic 而逐个创建或修改 Skill。完成相关写入后立即结束本轮。
 
 每个 Skill 都必须有清晰的标题或 name 以及 description，正文保留以下结构：

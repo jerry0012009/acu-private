@@ -24,7 +24,8 @@ The image binds prompt behavior to Acontext Learning Spaces:
   updates topic-level Quality Skills;
 - the Skill Learner reads the current Learning Space Skill catalog at runtime,
   uses each Skill's title/name and description for selection, and updates at
-  most three Skills for one Experience;
+  most three Skills in one learner run and creates at most one new Skill for
+  the film Learning Space;
 - learning focuses on contextual user preferences and trajectory experience,
   not technical SOPs;
 - preference documents use a short Markdown format, preserve experience IDs,
