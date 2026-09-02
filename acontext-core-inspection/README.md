@@ -19,7 +19,9 @@ The image binds prompt behavior to Acontext Learning Spaces:
   independent film prompt set; explicit film learning keeps the internal Task
   record for orchestration, while the Task Agent is bypassed and only the
   executed Distillation and Skill Learner prompts are exposed for inspection;
-- all other Learning Spaces retain the pre-film Private ACU prompts;
+- ordinary Learning Spaces use independent Chinese account-preference
+  distillation and Skill Learner prompts; the generic Task Agent prompt remains
+  available for ordinary task management;
 - a film `SelectionExperience` can be submitted as text-only or as one text
   plus multiple images;
 - film learning keeps multiple conditional claims from one experience and
@@ -32,7 +34,8 @@ The image binds prompt behavior to Acontext Learning Spaces:
   not technical SOPs;
 - preference documents use a short Markdown format, preserve experience IDs,
   and reconcile conflicting conditional preferences;
-- generated content follows the user's dominant language.
+- generated content follows the user's dominant language, with Chinese account
+  preference titles, descriptions, and bodies for Chinese learning traces.
 
 Prompt selection uses the `learning_space_id` already present in the Task,
 Distillation, and Skill Learner calls. The `film_preference_v1` message marker

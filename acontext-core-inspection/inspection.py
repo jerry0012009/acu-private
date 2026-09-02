@@ -47,7 +47,7 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, objec
             "content": SkillDistillationPrompt.failure_distillation_prompt(
                 learning_space_id
             ),
-            "language": "mixed",
+            "language": "zh-CN",
             "source": (
                 "llm/prompt/skill_distillation.py: "
                 "SkillDistillationPrompt.failure_distillation_prompt"
@@ -61,7 +61,7 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, objec
             "title": "账户偏好 Skill 学习提示词",
             "description": "根据账户级蒸馏结果更新或创建偏好 Skill。",
             "content": SkillLearnerPrompt.system_prompt(learning_space_id),
-            "language": "mixed",
+            "language": "zh-CN",
             "source": "llm/prompt/skill_learner.py: SkillLearnerPrompt.system_prompt",
             "execution": "used",
             "examples": account_prompt_examples("skill_learner"),

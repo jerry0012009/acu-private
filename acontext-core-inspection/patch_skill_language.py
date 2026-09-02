@@ -83,13 +83,15 @@ _acu_original_failure_distillation_prompt = (
 
 def _acu_space_bound_success_prompt(cls, learning_space_id=None) -> str:
     return _acu_distillation_prompt_for_space(
-        _acu_original_success_distillation_prompt(), learning_space_id
+        _acu_original_success_distillation_prompt(),
+        learning_space_id,
     )
 
 
 def _acu_space_bound_failure_prompt(cls, learning_space_id=None) -> str:
     return _acu_distillation_prompt_for_space(
-        _acu_original_failure_distillation_prompt(), learning_space_id
+        _acu_original_failure_distillation_prompt(),
+        learning_space_id,
     )
 
 

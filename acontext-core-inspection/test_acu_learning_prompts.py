@@ -34,7 +34,7 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
             self.assertNotIn("learning_trigger: user_dissatisfaction", prompt)
             self.assertNotIn("ACU Preference Documents", prompt)
 
-    def test_other_spaces_keep_existing_private_acu_prompts(self) -> None:
+    def test_other_spaces_use_independent_chinese_account_prompts(self) -> None:
         with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
             prompts = (
                 task_prompt_for_space("BASE TASK", "ordinary-space"),
@@ -43,11 +43,14 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
             )
 
         self.assertTrue(prompts[0].startswith("BASE TASK"))
-        self.assertTrue(prompts[1].startswith("BASE DISTILL"))
-        self.assertTrue(prompts[2].startswith("BASE SKILL"))
-        for prompt in prompts:
-            self.assertNotIn("film-language-lighting", prompt)
-            self.assertNotIn("影视团队", prompt)
+        self.assertNotIn("BASE DISTILL", prompts[1])
+        self.assertNotIn("BASE SKILL", prompts[2])
+        self.assertIn("可迁移", prompts[1])
+        self.assertIn("可迁移", prompts[2])
+        self.assertIn("中文", prompts[1])
+        self.assertIn("中文", prompts[2])
+        self.assertNotIn("影视团队", prompts[1])
+        self.assertNotIn("影视团队", prompts[2])
 
     def test_film_prompt_cards_show_only_executed_learning_stages(self) -> None:
         with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):

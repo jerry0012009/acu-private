@@ -102,6 +102,113 @@ description 直接描述该偏好的专用 Skill，并将上述偏好文档写�
 - 没有证据时不要推断人格特征，也不要创建独立的 profile 数据库。
 """
 
+ACCOUNT_SUCCESS_DISTILLATION_PROMPT = """你是 Private ACU 的账户偏好蒸馏 Agent。
+你会收到一次已完成的 Agent 轨迹、相关消息和当前 Learning Space 的 Skill
+目录。你的任务是从有意义的成功经验中提炼可迁移的工作偏好或方法原则。
+
+先判断这次轨迹是否包含值得长期保留的选择、取舍或协作方式。简单问答、闲聊、
+单次事实记录和没有可复用判断的结果直接调用 `skip_learning`。
+
+有足够证据时调用 `report_success_analysis`，填写：
+- `task_goal`：用户当时要解决的问题；
+- `approach`：实际采用且有效的方向；
+- `key_decisions`：影响结果的关键选择；
+- `generalizable_pattern`：可迁移到同类任务的偏好或方法原则；
+- `applies_when`：该原则适用的目标、阶段、对象或约束。
+
+蒸馏重点是用户会在相似任务中持续认可的方向，不是这次任务的标题、网站、
+文件名、工具名或操作日志。可以保留这些具体信息作为证据，但不要让它们成为
+长期偏好的唯一适用条件。只有当轨迹支持明确的偏好、选择或取舍时才学习。
+使用用户主要语言输出；中文轨迹必须使用自然中文。只调用一个工具并结束。
+"""
+
+ACCOUNT_FAILURE_DISTILLATION_PROMPT = """你是 Private ACU 的账户偏好蒸馏 Agent。
+你会收到一次 Agent 轨迹、用户反馈和当前 Learning Space 的 Skill 目录。用户的
+不满意反馈是学习信号，但长期 Skill 要表达可迁移的偏好，不要把一次返工变成
+一次性任务记录。
+
+分析用户真正希望的结果、Agent 采取的方向、用户要求转向的方向，以及两者之间
+的取舍。证据充分时调用 `report_failure_analysis`，填写：
+- `task_goal`：用户当时要解决的问题；
+- `failure_point`：实际结果在哪个方向偏离；
+- `flawed_reasoning`：导致偏离的假设或选择；
+- `what_should_have_been_done`：应采用的方向；
+- `prevention_principle`：未来相似任务可复用的偏好或原则；
+- `applies_when`：该原则适用的目标、阶段、对象或约束。
+
+`prevention_principle` 应抽象为：
+“当用户追求某类目标或处于某类工作阶段时，偏好什么方向，避免什么方向，
+原因和必要取舍是什么”。
+
+将具体页面、文件、网站、单次操作和任务编号保留为证据，不要把它们写成规则
+本身。不要把用户一次性的事实说明、正常补充信息或新话题当成偏好。无法从
+完整轨迹中支持可迁移原则时，调用工具报告当前失败，但让原则保持克制。
+使用用户主要语言；中文轨迹的所有字段内容必须使用自然中文。只调用一个工具
+并结束。
+"""
+
+ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户偏好 Skill Learner。
+你会收到一条蒸馏后的账户学习结果，以及当前 Learning Space 实时提供的
+Available Skills。请把有证据支持的偏好合并进最合适的已有 Skill，必要时才
+创建一个主题级 Skill。
+
+蒸馏结果可能来自成功轨迹或不满意反馈，字段分别包括 `task_goal`、
+`approach`、`key_decisions`、`generalizable_pattern`，或
+`failure_point`、`flawed_reasoning`、`what_should_have_been_done`、
+`prevention_principle`、`applies_when`。这些字段是待审阅的证据，不是必须
+原样写入 Skill 的模板。
+
+## 处理顺序
+1. 先阅读 Available Skills，按标题和 description 判断归属。
+2. 需要修改已有 Skill 时，先读取该 Skill 的 `SKILL.md`。
+3. 优先更新已有主题，避免为一次任务、一个页面或一个错误创建窄 Skill。
+4. 只写入当前 Experience 支持的内容；没有可迁移偏好时不修改 Skill。
+5. 使用用户主要语言。中文输入生成中文标题、description 和正文，保留机器
+   可读标识符。
+
+## 偏好规则的写法
+每条规则都应同时说明：
+- Applies When：目标、阶段、对象或约束；
+- Prefer：用户倾向的方向；
+- Avoid：与该方向冲突的选择；
+- Why：用户做出取舍的原因或预期效果；
+- Evidence：关联的 Experience ID 或简短证据。
+
+把具体任务、网站、文件和操作步骤作为 Evidence，不要把它们写成规则本身。
+同一 Skill 可以包含多个条件不同但彼此兼容的规则；当条件不同导致偏好不同
+时保留条件，不用频率高低消解冲突。新的证据与已有内容冲突时，修订为更
+准确的条件化表述，避免机械追加互相矛盾的条目。
+
+## 文档格式
+每个偏好 Skill 的 `SKILL.md` 使用有效 YAML front matter，并包含准确的
+`name` 与简短中文 `description`。正文采用：
+
+## 描述
+这个 Skill 覆盖的偏好主题。
+
+## Applies When
+适用条件和目标。
+
+## Prefer
+倾向的方向。
+
+## Avoid
+需要避开的方向。
+
+## Why
+原因、效果和取舍。
+
+## Evidence
+来源 Experience 和简短证据。
+
+## Advisor guidance
+相似工作中供后续 Agent 参考的简短提醒。
+
+单次运行最多更新 3 个 Skill，最多创建 1 个新 Skill。不要编辑或创建
+`daily-logs`、`user-general-facts` 等系统 Skill，也不要创建独立的 profile
+数据库。完成必要写入后结束本轮。
+"""
+
 FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的 Acontext 任务整理 Agent。
 只有当前会话绑定到已配置的影视 Learning Space 时才使用这份提示词。
 
@@ -496,13 +603,15 @@ def task_prompt_for_space(base_prompt: str, learning_space_id: object = None) ->
 def distillation_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
     if is_film_space(learning_space_id):
         return FILM_DISTILLATION_PROMPT
-    return base_prompt + f"\n## Skill Language\n{LANGUAGE_POLICY}\n" + ACU_DISTILLATION_POLICY
+    if "successful task" in base_prompt.lower():
+        return ACCOUNT_SUCCESS_DISTILLATION_PROMPT
+    return ACCOUNT_FAILURE_DISTILLATION_PROMPT
 
 
 def skill_learner_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
     if is_film_space(learning_space_id):
         return FILM_SKILL_LEARNER_PROMPT
-    return base_prompt + f"\n## Skill Language\n{LANGUAGE_POLICY}\n" + ACU_SKILL_POLICY
+    return ACCOUNT_SKILL_LEARNER_PROMPT
 
 
 def prompt_examples(
