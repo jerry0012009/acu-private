@@ -13,8 +13,60 @@ PROMPT_FILES = (
 )
 
 
+def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, str]]:
+    from acontext_core.llm.prompt.acu_learning_prompts import (
+        film_prompt_cards,
+        is_film_space,
+    )
+
+    if is_film_space(learning_space_id):
+        return film_prompt_cards()
+
+    from acontext_core.llm.prompt.skill_distillation import SkillDistillationPrompt
+    from acontext_core.llm.prompt.skill_learner import SkillLearnerPrompt
+    from acontext_core.llm.prompt.task import TaskPrompt
+
+    return [
+        {
+            "id": "account-task",
+            "stage": "task",
+            "title": "通用 Acontext 任务整理提示词",
+            "description": "处理普通 Learning Space 的任务整理和消息关联。",
+            "content": TaskPrompt.system_prompt(learning_space_id),
+            "language": "mixed",
+            "source": "llm/prompt/task.py: TaskPrompt.system_prompt",
+            "execution": "bypassed_for_explicit_learning",
+        },
+        {
+            "id": "account-distillation",
+            "stage": "distillation",
+            "title": "账户偏好蒸馏提示词",
+            "description": "从账户级学习 Experience 中提取可复用的条件化偏好。",
+            "content": SkillDistillationPrompt.failure_distillation_prompt(
+                learning_space_id
+            ),
+            "language": "mixed",
+            "source": (
+                "llm/prompt/skill_distillation.py: "
+                "SkillDistillationPrompt.failure_distillation_prompt"
+            ),
+            "execution": "used",
+        },
+        {
+            "id": "account-skill-learner",
+            "stage": "skill_learner",
+            "title": "账户偏好 Skill 学习提示词",
+            "description": "根据账户级蒸馏结果更新或创建偏好 Skill。",
+            "content": SkillLearnerPrompt.system_prompt(learning_space_id),
+            "language": "mixed",
+            "source": "llm/prompt/skill_learner.py: SkillLearnerPrompt.system_prompt",
+            "execution": "used",
+        },
+    ]
+
+
 @router.get("/internal/inspection/prompts")
-async def inspect_prompts() -> dict:
+async def inspect_prompts(learning_space_id: str | None = None) -> dict:
     files = []
     for name in PROMPT_FILES:
         path = PROMPT_ROOT / name
@@ -27,4 +79,11 @@ async def inspect_prompts() -> dict:
                 "content": path.read_text(encoding="utf-8"),
             }
         )
-    return {"files": files}
+    try:
+        prompts = resolved_prompt_cards(learning_space_id)
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Resolved prompt inspection is unavailable: {error}",
+        ) from error
+    return {"files": files, "prompts": prompts}

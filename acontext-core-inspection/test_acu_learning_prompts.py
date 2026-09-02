@@ -5,6 +5,7 @@ from unittest.mock import patch
 from acu_learning_prompts import (
     FILM_SPACE_ENV,
     distillation_prompt_for_space,
+    film_prompt_cards,
     is_film_space,
     skill_learner_prompt_for_space,
     task_prompt_for_space,
@@ -41,7 +42,18 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
         self.assertTrue(prompts[2].startswith("BASE SKILL"))
         for prompt in prompts:
             self.assertNotIn("film-language-lighting", prompt)
-            self.assertNotIn("film team's", prompt)
+            self.assertNotIn("影视团队", prompt)
+
+    def test_film_prompt_cards_are_chinese_and_cover_learning_stages(self) -> None:
+        with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
+            cards = film_prompt_cards()
+
+        self.assertEqual(
+            [card["stage"] for card in cards],
+            ["task", "distillation", "skill_learner"],
+        )
+        self.assertTrue(all(card["language"] == "zh-CN" for card in cards))
+        self.assertTrue(all(card["content"] for card in cards))
 
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
