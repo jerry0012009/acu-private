@@ -1,15 +1,18 @@
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from acu_learning_prompts import (
     FILM_SPACE_ENV,
+    account_prompt_examples,
     distillation_prompt_for_space,
     film_prompt_cards,
     is_film_space,
     skill_learner_prompt_for_space,
     task_prompt_for_space,
 )
+from patch_film_multimodal_distillation import build_film_distillation_content
 
 
 FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
@@ -54,6 +57,38 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
         )
         self.assertTrue(all(card["language"] == "zh-CN" for card in cards))
         self.assertTrue(all(card["content"] for card in cards))
+        self.assertTrue(all(card["examples"] for card in cards))
+        self.assertEqual(cards[1]["examples"][0]["origin"], "reference_fixture")
+        self.assertEqual(
+            cards[1]["examples"][0]["material"]["images"][0]["mimeType"],
+            "image/jpeg",
+        )
+        self.assertEqual(cards[1]["examples"][0]["artifact"]["format"], "json")
+
+    def test_film_skill_learner_uses_runtime_catalog_and_limits_writes(self) -> None:
+        with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
+            prompt = skill_learner_prompt_for_space("BASE SKILL", FILM_SPACE_ID)
+
+        self.assertIn("当前 Learning Space 实时提供的 Skill catalog", prompt)
+        self.assertIn("最多选择 3 个", prompt)
+        self.assertIn("最多创建 1 个新 Skill", prompt)
+        self.assertIn("不要使用提示词中预设的 Skill 名称或固定主题目录", prompt)
+        self.assertNotIn("film-language-lighting：", prompt)
+        self.assertNotIn("film-language-color：", prompt)
+
+    def test_account_prompt_cards_have_text_and_artifact_examples(self) -> None:
+        with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
+            cards = [
+                {
+                    "examples": account_prompt_examples(stage),
+                }
+                for stage in ("task", "distillation", "skill_learner")
+            ]
+
+        self.assertTrue(all(card["examples"] for card in cards))
+        self.assertEqual(cards[0]["examples"][0]["origin"], "reference_fixture")
+        self.assertIn("text", cards[0]["examples"][0]["material"])
+        self.assertEqual(cards[2]["examples"][0]["artifact"]["format"], "markdown")
 
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
@@ -63,6 +98,47 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
                     "BASE TASK"
                 )
             )
+
+    def test_film_distillation_binds_images_to_one_multimodal_message(self) -> None:
+        content = build_film_distillation_content(
+            "文本证据",
+            [
+                SimpleNamespace(
+                    parts=[
+                        SimpleNamespace(
+                            type="text",
+                            meta=None,
+                        ),
+                        SimpleNamespace(
+                            type="image",
+                            meta={
+                                "url": "data:image/jpeg;base64,ZmFrZQ==",
+                                "detail": "high",
+                            },
+                        ),
+                    ]
+                )
+            ],
+        )
+
+        self.assertIsInstance(content, list)
+        self.assertEqual(
+            [item["type"] for item in content],
+            ["text", "text", "image_url"],
+        )
+        self.assertEqual(
+            content[-1]["image_url"],
+            {
+                "url": "data:image/jpeg;base64,ZmFrZQ==",
+                "detail": "high",
+            },
+        )
+
+    def test_film_distillation_without_images_keeps_text_input(self) -> None:
+        self.assertEqual(
+            build_film_distillation_content("文本证据", []),
+            "文本证据",
+        )
 
 
 if __name__ == "__main__":

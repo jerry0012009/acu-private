@@ -9,6 +9,9 @@ COPY learning_events.py /app/acontext_core/service/learning_events.py
 COPY patch_learning_events.py /app/patch_learning_events.py
 RUN /app/.venv/bin/python /app/patch_learning_events.py
 
+COPY patch_film_multimodal_distillation.py /app/patch_film_multimodal_distillation.py
+RUN /app/.venv/bin/python /app/patch_film_multimodal_distillation.py
+
 COPY patch_llm_retries.py /app/patch_llm_retries.py
 RUN /app/.venv/bin/python /app/patch_llm_retries.py
 

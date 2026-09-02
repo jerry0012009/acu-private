@@ -1,7 +1,16 @@
 import os
+from copy import deepcopy
 
 
 FILM_SPACE_ENV = "ACU_FILM_LEARNING_SPACE_ID"
+FILM_REFERENCE_IMAGE_URL = (
+    "https://upload.wikimedia.org/wikipedia/commons/d/d4/"
+    "The_Cabinet_of_Dr_Caligari_Holstenwall.jpg"
+)
+FILM_REFERENCE_SOURCE_URL = (
+    "https://commons.wikimedia.org/wiki/"
+    "File:The_Cabinet_of_Dr_Caligari_Holstenwall.jpg"
+)
 
 LANGUAGE_POLICY = (
     "使用用户的主要语言生成蒸馏结果以及所有已学习的偏好描述和正文。"
@@ -135,20 +144,19 @@ integrated visual language 等主题。当优点、欠缺或淘汰原因能够�
 FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。当前学习会话
 属于已配置的影视 Learning Space。根据蒸馏结果更新影视主题级 Quality Skill。
 
-可用主题 Skill：
-- film-language-overview：作为连接系统的影视视听语言。
-- film-language-narrative-context：场景目的、戏剧功能和创作约束。
-- film-language-character-and-relationship：人物状态、关系和距离。
-- film-language-lighting：光线方向、反差、柔硬度和曝光。
-- film-language-color：色温、饱和度、色彩体系和反差。
-- film-language-shot-and-composition：景别、取景、平衡和负空间。
-- film-language-camera：摄影机位置、运动、镜头感和视角。
-- film-language-mise-en-scene：空间、物件、调度和视觉层级。
-- film-language-visual-emotion：塑造观众情绪的视觉选择。
-- film-language-integration：服务于同一叙事目标的视听语言组合。
+输入中的 Available Skills 是当前 Learning Space 实时提供的 Skill catalog，
+每一项包含 Skill 的 name/title 和 description。以这份 catalog 为准判断归属，
+不要使用提示词中预设的 Skill 名称或固定主题目录。
 
-编辑每个相关 Skill 前，先读取它的 `SKILL.md`。主题已有对应 Skill 时更新它；
-缺少对应主题时创建它。一条 SelectionExperience 可以更新多个主题 Skill。
+从当前 catalog 中选择与本条蒸馏结果最相关的 Skill，最多选择 3 个。优先复用
+已有 Skill；只有当前 catalog 没有能够承载该学习点的 Skill 时，才创建新的
+Quality Skill，单条 Experience 最多创建 1 个新 Skill。不要编辑或创建
+`daily-logs`、`user-general-facts` 等通用系统 Skill。
+
+编辑 Skill 前先读取该 Skill 的 `SKILL.md`。多个 LearningClaim 如果服务于
+同一个剧本语境、人物目标或叙事目的，应先合并为一组条件化规则，再写入最相关
+的 1-3 个 Skill。每次 Experience 的写入范围最多为 3 个 Skill；不要为了覆盖
+每个 Claim 的 topic 而逐个创建或修改 Skill。完成相关写入后立即结束本轮。
 
 每个 Skill 都必须有清晰的标题或 name 以及 description，正文保留以下结构：
 
@@ -168,8 +176,256 @@ FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。当
 简短的来源 Experience 引用。
 
 不同语境下的视觉方向保持为不同的条件化规则。合并兼容证据时不要将它们
-变成频率统计。使用用户的主要语言，并保留机器可读标识符。
+变成频率统计。使用用户的主要语言，并保留机器可读标识符。只根据当前
+Experience 和已有 Skill 的内容做必要修改。
 """
+
+ACCOUNT_EXAMPLE_MATERIAL = {
+    "text": (
+        "用户希望把登录页改成更紧凑的工作界面。Agent 第一次提交了一个大幅营销式布局，"
+        "用户回复：请收敛，不要增加与当前任务无关的装饰，只保留可直接操作的内容。"
+    )
+}
+
+ACCOUNT_PROMPT_EXAMPLES = {
+    "task": [
+        {
+            "id": "account-task-fixture-01",
+            "title": "一次中文返工反馈",
+            "origin": "reference_fixture",
+            "material": ACCOUNT_EXAMPLE_MATERIAL,
+            "artifact": {
+                "format": "json",
+                "content": {
+                    "task_goal": "将页面收敛为可直接操作的紧凑工作界面",
+                    "status": "pending",
+                    "source_experience": "account-fixture-01",
+                },
+            },
+        }
+    ],
+    "distillation": [
+        {
+            "id": "account-distillation-fixture-01",
+            "title": "从返工反馈提取条件化偏好",
+            "origin": "reference_fixture",
+            "material": {
+                **ACCOUNT_EXAMPLE_MATERIAL,
+                "json": {
+                    "experience_id": "account-fixture-01",
+                    "quality_context": "产品界面设计与实现阶段",
+                    "feedback_reason": "用户要求收敛并删除无关装饰",
+                },
+            },
+            "artifact": {
+                "format": "json",
+                "content": {
+                    "experience_id": "account-fixture-01",
+                    "preference_candidates": [
+                        {
+                            "applies_when": "面对以操作效率为目标的产品界面任务",
+                            "prefer": "紧凑、直接、可扫描的工作界面",
+                            "avoid": "营销式首屏和与任务无关的装饰",
+                        }
+                    ],
+                },
+            },
+        }
+    ],
+    "skill_learner": [
+        {
+            "id": "account-skill-learner-fixture-01",
+            "title": "更新账户偏好文档",
+            "origin": "reference_fixture",
+            "material": {
+                "json": {
+                    "experience_id": "account-fixture-01",
+                    "preference_candidates": [
+                        {
+                            "applies_when": "操作效率优先的产品界面任务",
+                            "prefer": "紧凑、直接、可扫描",
+                            "avoid": "营销式装饰",
+                        }
+                    ],
+                },
+                "text": "修改前 Skill：尚无相关界面密度偏好。",
+            },
+            "artifact": {
+                "format": "markdown",
+                "content": (
+                    "# 紧凑的工作界面\n\n"
+                    "## Applies When\n"
+                    "面对以操作效率为目标的产品界面任务。\n\n"
+                    "## Prefer\n"
+                    "紧凑、直接、可扫描的工作界面。\n\n"
+                    "## Avoid\n"
+                    "营销式首屏和与任务无关的装饰。\n"
+                ),
+            },
+        }
+    ],
+}
+
+FILM_REFERENCE_MATERIAL = {
+    "text": (
+        "这张参考图用于一个人物首次进入陌生城市的分镜。剧本语境：人物处于不安和"
+        "疏离状态，叙事目标是在没有对白的情况下先让观众感到空间压迫，再进入人物。"
+    ),
+    "json": {
+        "experience_id": "film-fixture-caligari-holstenwall-01",
+        "quality_context": (
+            "人物首次进入陌生城市，处于不安和疏离状态；当前叙事目标是先建立压迫、"
+            "异化的空间感，再让观众进入人物视角。生成分镜图需要保留强烈的场景识别度。"
+        ),
+        "film_language_analysis": {
+            "narrative_context": {
+                "function": "建立人物即将进入的异化城市环境",
+                "emotion": "压迫、不安、疏离",
+            },
+            "lighting": {
+                "direction": "大面积背光与局部轮廓光",
+                "contrast": "明暗反差强",
+                "shadow": "边缘和底部保留深色阴影",
+            },
+            "color": {
+                "palette": "暗青黑与偏黄高光",
+                "saturation": "整体低饱和，暖色区域集中在空间中心",
+            },
+            "shot_and_composition": {
+                "scale": "远景",
+                "composition": "中心轴线指向尖塔，四周建筑形成挤压",
+                "negative_space": "顶部和边缘的暗部包围主体空间",
+            },
+            "mise_en_scene": {
+                "space": "倾斜、密集、非现实的城市建筑",
+                "visual_hierarchy": "尖塔作为视觉锚点，重复屋顶制造不稳定节奏",
+            },
+        },
+        "team_decision": "reference",
+        "good_points": [
+            "建筑轮廓直接传达异化和压迫",
+            "中心尖塔建立清晰视觉锚点",
+            "暗部边界把观众视线收束到城市内部",
+        ],
+        "missing_points": [
+            "若用于人物入场，后续镜头需要补充人物尺度对照",
+        ],
+        "rejection_reason": None,
+        "source": {
+            "work": "The Cabinet of Dr. Caligari",
+            "fragment": "Holstenwall establishing image",
+            "source_url": FILM_REFERENCE_SOURCE_URL,
+        },
+        "provenance": {
+            "analysis_version": "film-json-v1",
+            "license": "Public domain",
+        },
+    },
+    "images": [
+        {
+            "url": FILM_REFERENCE_IMAGE_URL,
+            "mimeType": "image/jpeg",
+            "alt": "《卡里加利博士的小屋》中的 Holstenwall 城市场景参考图",
+        }
+    ],
+}
+
+FILM_REFERENCE_CLAIMS = [
+    {
+        "topic": "lighting",
+        "applies_when": "需要在人物进入陌生空间前建立压迫和不安时",
+        "prefer": "强反差、深边缘阴影和局部轮廓光",
+        "avoid": "均匀铺开的无方向软光",
+        "why": "让空间先于人物产生心理压力",
+        "example_ref": "film-fixture-caligari-holstenwall-01",
+    },
+    {
+        "topic": "shot_and_composition",
+        "applies_when": "需要建立异化城市的整体威胁感时",
+        "prefer": "远景、中心视觉锚点、建筑轮廓形成向内挤压",
+        "avoid": "平均分配视觉重量的平直城市全景",
+        "why": "使观众先感到空间秩序不稳定",
+        "example_ref": "film-fixture-caligari-holstenwall-01",
+    },
+    {
+        "topic": "color",
+        "applies_when": "需要让压迫空间保留一个叙事焦点时",
+        "prefer": "暗青黑基础色配集中偏黄高光",
+        "avoid": "全画面均匀高饱和的彩色铺陈",
+        "why": "用有限暖色引导视线，同时维持疏离感",
+        "example_ref": "film-fixture-caligari-holstenwall-01",
+    },
+]
+
+FILM_PROMPT_EXAMPLES = {
+    "task": [
+        {
+            "id": "film-task-fixture-caligari-01",
+            "title": "异化城市建立镜头",
+            "origin": "reference_fixture",
+            "material": FILM_REFERENCE_MATERIAL,
+            "artifact": {
+                "format": "json",
+                "content": {
+                    "task_goal": "整理一条影视 SelectionExperience 并交给后续蒸馏",
+                    "learning_unit": "film-fixture-caligari-holstenwall-01",
+                    "image_count": 1,
+                },
+            },
+            "sourceUrl": FILM_REFERENCE_SOURCE_URL,
+        }
+    ],
+    "distillation": [
+        {
+            "id": "film-distillation-fixture-caligari-01",
+            "title": "从城市场景提取多个视听语言学习点",
+            "origin": "reference_fixture",
+            "material": FILM_REFERENCE_MATERIAL,
+            "artifact": {
+                "format": "json",
+                "content": {
+                    "experience_id": "film-fixture-caligari-holstenwall-01",
+                    "evidence_summary": "异化城市通过尖锐建筑、中心尖塔、暗部包围和冷暖对照形成压迫感。",
+                    "claims": FILM_REFERENCE_CLAIMS,
+                },
+            },
+            "sourceUrl": FILM_REFERENCE_SOURCE_URL,
+        }
+    ],
+    "skill_learner": [
+        {
+            "id": "film-skill-learner-fixture-caligari-01",
+            "title": "更新影视主题 Quality Skill",
+            "origin": "reference_fixture",
+            "material": {
+                "text": FILM_REFERENCE_MATERIAL["text"],
+                "json": {
+                    "experience_id": "film-fixture-caligari-holstenwall-01",
+                    "claims": FILM_REFERENCE_CLAIMS,
+                },
+                "images": FILM_REFERENCE_MATERIAL["images"],
+            },
+            "artifact": {
+                "format": "markdown",
+                "content": (
+                    "# 异化空间中的压迫性视觉语言\n\n"
+                    "## Applies When\n"
+                    "人物首次进入陌生城市，处于不安和疏离状态，需要先建立空间压迫。\n\n"
+                    "## Prefer\n"
+                    "使用远景、尖锐建筑轮廓、明确的中心视觉锚点、强反差和深边缘阴影；"
+                    "以暗青黑为基础色，在叙事焦点处集中偏黄高光。\n\n"
+                    "## Avoid\n"
+                    "均匀软光、平直而平均的城市全景，以及全画面均匀高饱和的色彩。\n\n"
+                    "## Why\n"
+                    "空间秩序的不稳定先于人物进入观众感知，有限暖色负责引导视线并保留疏离感。\n\n"
+                    "## Examples\n"
+                    "film-fixture-caligari-holstenwall-01\n"
+                ),
+            },
+            "sourceUrl": FILM_REFERENCE_SOURCE_URL,
+        }
+    ],
+}
 
 FILM_DISTILL_TOOL_FUNCTION = {
     "name": "report_film_learning_claims",
@@ -235,7 +491,13 @@ def skill_learner_prompt_for_space(base_prompt: str, learning_space_id: object =
     return base_prompt + f"\n## Skill Language\n{LANGUAGE_POLICY}\n" + ACU_SKILL_POLICY
 
 
-def film_prompt_cards() -> list[dict[str, str]]:
+def prompt_examples(
+    stage: str, examples: dict[str, list[dict[str, object]]]
+) -> list[dict[str, object]]:
+    return deepcopy(examples.get(stage, []))
+
+
+def film_prompt_cards() -> list[dict[str, object]]:
     return [
         {
             "id": "film-task",
@@ -246,6 +508,7 @@ def film_prompt_cards() -> list[dict[str, str]]:
             "language": "zh-CN",
             "source": "acu_learning_prompts.py: FILM_TASK_PROMPT",
             "execution": "bypassed_for_explicit_learning",
+            "examples": prompt_examples("task", FILM_PROMPT_EXAMPLES),
         },
         {
             "id": "film-distillation",
@@ -256,6 +519,7 @@ def film_prompt_cards() -> list[dict[str, str]]:
             "language": "zh-CN",
             "source": "acu_learning_prompts.py: FILM_DISTILLATION_PROMPT",
             "execution": "used",
+            "examples": prompt_examples("distillation", FILM_PROMPT_EXAMPLES),
         },
         {
             "id": "film-skill-learner",
@@ -266,5 +530,10 @@ def film_prompt_cards() -> list[dict[str, str]]:
             "language": "zh-CN",
             "source": "acu_learning_prompts.py: FILM_SKILL_LEARNER_PROMPT",
             "execution": "used",
+            "examples": prompt_examples("skill_learner", FILM_PROMPT_EXAMPLES),
         },
     ]
+
+
+def account_prompt_examples(stage: str) -> list[dict[str, object]]:
+    return prompt_examples(stage, ACCOUNT_PROMPT_EXAMPLES)

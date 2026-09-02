@@ -13,8 +13,9 @@ PROMPT_FILES = (
 )
 
 
-def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, str]]:
+def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, object]]:
     from acontext_core.llm.prompt.acu_learning_prompts import (
+        account_prompt_examples,
         film_prompt_cards,
         is_film_space,
     )
@@ -36,6 +37,7 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, str]]
             "language": "mixed",
             "source": "llm/prompt/task.py: TaskPrompt.system_prompt",
             "execution": "bypassed_for_explicit_learning",
+            "examples": account_prompt_examples("task"),
         },
         {
             "id": "account-distillation",
@@ -51,6 +53,7 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, str]]
                 "SkillDistillationPrompt.failure_distillation_prompt"
             ),
             "execution": "used",
+            "examples": account_prompt_examples("distillation"),
         },
         {
             "id": "account-skill-learner",
@@ -61,6 +64,7 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, str]]
             "language": "mixed",
             "source": "llm/prompt/skill_learner.py: SkillLearnerPrompt.system_prompt",
             "execution": "used",
+            "examples": account_prompt_examples("skill_learner"),
         },
     ]
 

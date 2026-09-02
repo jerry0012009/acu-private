@@ -22,6 +22,9 @@ The image binds prompt behavior to Acontext Learning Spaces:
   plus multiple images;
 - film learning keeps multiple conditional claims from one experience and
   updates topic-level Quality Skills;
+- the Skill Learner reads the current Learning Space Skill catalog at runtime,
+  uses each Skill's title/name and description for selection, and updates at
+  most three Skills for one Experience;
 - learning focuses on contextual user preferences and trajectory experience,
   not technical SOPs;
 - preference documents use a short Markdown format, preserve experience IDs,
@@ -36,6 +39,12 @@ storage remain unchanged.
 The wrapper disables the OpenAI and Anthropic SDKs' built-in request retries.
 The ACU Router relay owns the five-attempt provider failover budget, so a Core
 completion cannot multiply retries across nested SDK and Router layers.
+
+For asynchronous Skill Learner work, the deployment may set
+`LLM_RESPONSE_TIMEOUT=300` in Acontext Core and
+`ACONTEXT_RELAY_TIMEOUT_MS=300000` in ACU Router. These settings apply to the
+background relay path; ordinary interactive Private ACU calls retain their
+existing default deadline.
 
 It also records each successful upstream Core LLM completion in the existing
 Core PostgreSQL database table `acontext_llm_usage_ledger`. The ledger is
