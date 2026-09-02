@@ -100,6 +100,21 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
         self.assertIn("text", cards[0]["examples"][0]["material"])
         self.assertEqual(cards[2]["examples"][0]["artifact"]["format"], "markdown")
 
+    def test_account_prompts_require_portable_preference_abstraction(self) -> None:
+        with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
+            distillation = distillation_prompt_for_space(
+                "BASE DISTILL", "ordinary-space"
+            )
+            learner = skill_learner_prompt_for_space("BASE SKILL", "ordinary-space")
+
+        self.assertIn("任务事实", distillation)
+        self.assertIn("用户偏好", distillation)
+        self.assertIn("删除页面名、项目名", distillation)
+        self.assertIn("指导另一项同类工作", distillation)
+        self.assertIn("用户选择标准", learner)
+        self.assertIn("Skill 的 Markdown 标题、description", learner)
+        self.assertIn("替换具体名词后", learner)
+
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(is_film_space(FILM_SPACE_ID))
