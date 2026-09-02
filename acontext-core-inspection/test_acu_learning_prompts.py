@@ -126,11 +126,10 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(is_film_space(FILM_SPACE_ID))
-            self.assertTrue(
-                task_prompt_for_space("BASE TASK", FILM_SPACE_ID).startswith(
-                    "BASE TASK"
-                )
-            )
+            prompt = task_prompt_for_space("BASE TASK", FILM_SPACE_ID)
+            self.assertIn("Private ACU", prompt)
+            self.assertNotIn("影视团队", prompt)
+            self.assertNotIn("BASE TASK", prompt)
 
     def test_film_distillation_binds_images_to_one_multimodal_message(self) -> None:
         content = build_film_distillation_content(

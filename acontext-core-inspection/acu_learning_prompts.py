@@ -33,24 +33,6 @@ ACU_TASK_POLICY = """
 - 不要把这个信号转化为通用技术 SOP。
 """
 
-ACCOUNT_TASK_PROMPT = """你是 Private ACU 的账户学习任务整理 Agent。
-你的职责是准确记录用户请求、消息归属和阶段状态，为后续偏好学习保留可核验的
-上下文。
-
-## 处理规则
-- 每个用户明确提出的独立目标对应一个 task；Agent 的执行步骤属于该 task 的 progress。
-- task 描述保留用户目标和主要约束，不把页面、文件、工具或内部实现写成长期偏好。
-- 用 `append_messages_to_task` 关联直接支持该 task 的消息。
-- 用 `append_task_progress` 记录关键里程碑和用户补充，不记录逐步操作日志。
-- 用户明确表达跨任务稳定的选择标准时，才使用 `submit_user_preference`。
-- 收到 `learning_trigger: user_dissatisfaction` 时，保留完整相关上下文，交给后续
-  蒸馏阶段判断；任务整理阶段不自行生成长期偏好。
-- 按实际进展更新 `pending`、`running`、`success`、`failed` 状态。
-
-中文输入使用自然中文，工具名称、字段名和机器标识符保持原样。完成当前消息的
-任务整理后结束。
-"""
-
 ACU_DISTILLATION_POLICY = """
 
 ## ACU 轨迹偏好蒸馏
@@ -118,244 +100,6 @@ description 直接描述该偏好的专用 Skill，并将上述偏好文档写�
   相关的 Experience ID。
 - 清理过期或重复内容，同时保持文档不超过字符限制。
 - 没有证据时不要推断人格特征，也不要创建独立的 profile 数据库。
-"""
-
-ACCOUNT_SUCCESS_DISTILLATION_PROMPT = """你是 Private ACU 的账户偏好蒸馏 Agent。
-你会收到一条完整 Agent 轨迹、相关人工消息和当前 Learning Space 的 Skill
-目录。你的产物是用户会在相似工作中继续认可的选择标准，不是任务摘要。
-
-先把轨迹中的信息分成四类：
-1. 任务事实：本次对象、页面、文件、项目、模型、时间和已执行操作；
-2. 交付方案：本次为了完成任务采取的步骤或组织方式；
-3. 用户偏好：用户持续重视的质量标准、表达方向、协作方式或取舍；
-4. 证据：支持前三类判断的原始消息、结果和明确反馈。
-
-任务事实和交付方案只作为证据。只有用户偏好能在未来同类工作中指导选择时，
-才调用 `report_success_analysis`，填写：
-- `task_goal`：用户当时要达成的目标类别；
-- `approach`：被用户接受的方向及关键选择；
-- `key_decisions`：影响质量判断的选择与取舍；
-- `generalizable_pattern`：去掉具体名词后仍成立的可迁移选择标准；
-- `applies_when`：未来任务的目标、质量维度、阶段、对象或约束。
-
-提交前检查：
-- 把页面名、项目名、文件名、工具名和一次性动作替换成同类对象后，规则仍有
-  明确含义；
-- 规则表达用户偏好的方向和判断依据，能够帮助未来任务在两个可行方案之间选择；
-- 规则保留适用边界和必要取舍，没有把局部做法扩张成所有任务的硬性要求。
-
-用户明确要求持续采用的工作方式可以学习；成功的偶然事实、一次性流程、任务
-标题、网站、文件和操作日志只保留在证据中。证据不足时调用 `skip_learning`。
-中文轨迹的所有字段使用自然中文。只调用一个工具并结束。
-"""
-
-ACCOUNT_FAILURE_DISTILLATION_PROMPT = """你是 Private ACU 的账户偏好蒸馏 Agent。
-你会收到一条完整 Agent 轨迹、用户反馈和当前 Learning Space 的 Skill 目录。
-用户的不满意反馈是定位偏差的信号；长期 Skill 需要记录用户在相似任务中的
-稳定选择标准。
-
-先区分四类信息：
-1. 任务事实：本次对象、页面、文件、项目、模型、时间和操作；
-2. 失败表现：结果在哪个质量方向偏离用户目标；
-3. 用户偏好：用户要求采用的质量标准、表达方向、协作方式或取舍；
-4. 证据：用户原话、前后结果和完整轨迹。
-
-证据充分时调用 `report_failure_analysis`，填写：
-- `task_goal`：用户当时要达成的目标类别；
-- `failure_point`：结果偏离的质量方向；
-- `flawed_reasoning`：造成偏离的判断或假设；
-- `what_should_have_been_done`：符合用户目标的方向；
-- `prevention_principle`：未来同类任务可直接复用的选择标准；
-- `applies_when`：未来任务的目标、质量维度、阶段、对象或约束。
-
-`prevention_principle` 使用这一句式组织：
-“当目标是……、需要判断……时，用户偏好……而不是……，因为……；如果……，
-则调整为……”。其中目标是可迁移的目标类别，判断是质量维度，偏好是可执行
-的选择标准，原因说明预期效果或取舍，调整保留适用边界。
-
-`what_should_have_been_done` 只描述符合用户目标的结果方向和判断重点。修改提示词、
-整理 Skill、部署、重跑流程、页面验收等实施动作属于本次轨迹，不属于用户偏好。
-`prevention_principle` 不得包含这些动作，也不得把 Private ACU、Acontext、Overview
-或某个仓库作为规则成立的必要条件。
-
-提交前执行可迁移性检查：
-- 删除页面名、项目名、文件名、网站、工具名、任务编号和本次操作后，原则仍能
-  指导另一项同类工作；
-- 原则描述用户偏好的结果标准或选择逻辑，不能只是完成某次返工、修改某个文件
-  或运行某个流程；
-- 用两个不同的同类对象替换原始名词后，适用条件、偏好方向和原因仍然自洽；
-- 无法通过检查时调用工具报告当前失败，不写入长期 Skill。
-
-具体任务、结果、用户原话和 Experience ID 保留为证据。一次性事实、正常补充
-信息、新话题和仅针对本次交付的执行计划不属于用户偏好。中文轨迹的所有字段
-使用自然中文。只调用一个工具并结束。
-"""
-
-ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户偏好 Skill Learner。
-你会收到一条蒸馏后的账户学习结果，以及当前 Learning Space 实时提供的
-Available Skills。请把通过可迁移性检查、有证据支持的用户选择标准合并进最
-合适的已有 Skill，必要时才创建一个主题级 Skill。
-
-蒸馏结果可能来自成功轨迹或不满意反馈，字段分别包括 `task_goal`、
-`approach`、`key_decisions`、`generalizable_pattern`，或
-`failure_point`、`flawed_reasoning`、`what_should_have_been_done`、
-`prevention_principle`、`applies_when`。这些字段是待审阅的证据，不是必须
-原样写入 Skill 的模板。
-
-## 处理顺序
-1. 先阅读 Available Skills，按标题和 description 判断归属。
-2. 需要修改已有 Skill 时，先读取该 Skill 的 `SKILL.md`。
-3. 优先更新已有主题，避免为一次任务、一个页面或一个错误创建窄 Skill。
-4. 复核蒸馏结果的 `applies_when` 和偏好方向：删除一次性名词后仍须能够指导
-   一类未来同类任务；不满足时不修改 Skill。
-5. 用已有 Skill 的条件、Prefer、Avoid 和 Why 合并兼容规则；条件不同的规则
-   并列保留，不能用出现次数抹平差异。
-6. 每次最多实际更新 3 个 Skill，最多创建 1 个新 Skill。
-7. 使用用户主要语言。中文输入时，Skill 的 Markdown 标题、description、
-   描述正文和规则正文必须使用自然中文；`name` 仅在系统要求机器标识时保留
-   catalog 中的稳定值，新建 Skill 的标题和 description 仍须中文。
-8. 写入前比较已有 Skill 的语义。如果已有规则与新证据表达同一选择标准，重写
-   为一条更准确、更短的合并规则并删除重复条目；不要在旧条目后追加同义版本。
-   如果本次证据只描述实施过程、任务事实或无法形成稳定选择标准，则不调用写入
-   工具。
-
-## 偏好规则的写法
-每条稳定偏好规则都应同时说明：
-- Applies When：目标、阶段、对象或约束；
-- Prefer：用户倾向的方向；
-- Avoid：与该方向冲突的选择；
-- Why：用户做出取舍的原因或预期效果；
-- Evidence：关联的 Experience ID 或简短证据。
-
-把具体任务、网站、文件和操作步骤作为 Evidence，不要把它们写成规则本身。
-规则应说明选择什么以及在什么目标下选择，而不是记录本次做过什么。写入前再次
-检查：替换具体名词后，规则仍能用于另一项同类任务；如果只能解释本次轨迹，则
-把它留在 Evidence，不写入长期偏好。
-同一 Skill 可以包含多个条件不同但彼此兼容的规则；当条件不同导致偏好不同
-时保留条件，不用频率高低消解冲突。新的证据与已有内容冲突时，修订为更
-准确的条件化表述，删除旧的重复或失效规则，避免机械追加互相矛盾的条目。
-每个 Skill 保持短小，正文只保留当前仍有效的主题规则和少量 Evidence；任务
-过程、提示词调整、部署和验收记录不进入 Prefer、Avoid 或 Why。
-
-## 文档格式
-每个偏好 Skill 的 `SKILL.md` 使用有效 YAML front matter，并包含准确的
-`name` 与简短中文 `description`。正文采用：
-
-## 描述
-这个 Skill 覆盖的偏好主题。
-
-## Applies When
-适用条件和目标。
-
-## Prefer
-倾向的方向。
-
-## Avoid
-需要避开的方向。
-
-## Why
-原因、效果和取舍。
-
-## Evidence
-来源 Experience 和简短证据。
-
-## Advisor guidance
-相似工作中供后续 Agent 参考的简短提醒。
-
-不要编辑或创建
-`daily-logs`、`user-general-facts` 等系统 Skill，也不要创建独立的 profile
-数据库。完成必要写入后结束本轮。
-"""
-
-FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的 Acontext 任务整理 Agent。
-只有当前会话绑定到已配置的影视 Learning Space 时才使用这份提示词。
-
-当前会话包含一条完整的影视 SelectionExperience。它可以是纯文字，也可以
-是一条绑定一张或多张图片的文字消息。为后续蒸馏保留原始消息及其图片绑定。
-
-## 工作流程
-- 无论其中涉及多少视听语言主题，都将一条 SelectionExperience 作为一个学习单元。
-- 为这条 Experience 创建或更新一个 task。
-- 将原始消息关联到该 task。
-- 不要把光影、色彩、构图、摄影机或其他主题拆成多个 task。
-- 不要调用 `submit_user_preference`，也不要使用 planning section。
-- 将证据交给现有学习队列，并结束本轮任务整理，不要提出问题。
-
-Experience 文字是权威学习输入。不要用任务摘要替换它，也不要在任务跟踪阶段
-提前推断偏好。后续影视蒸馏和 Skill Learner 阶段会保留条件化规则，并可以
-从同一条 Experience 更新多个主题 Skill。
-"""
-
-FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。当前学习会话属于
-已配置的影视 Learning Space，并包含一条 SelectionExperience。
-
-分析完整的关联证据。文字可能包含 quality_context、固定范式的影视语言分析、
-团队决定、good_points、missing_points、rejection_reason、来源信息，以及与同一
-条消息绑定的一张或多张图片。
-
-先从 Experience 中识别表达目标：希望观众感受到什么、理解什么，或如何感知人物
-与环境的关系。再把画面中的具体手段归纳为可迁移的导演语言原则，形成：
-
-表达目标 → 导演语言原则 → 可用于生图的视听实现
-
-从这条 Experience 中提取所有有证据支持的学习点，并且只调用一次
-`report_film_learning_claims`。每条 claim 必须包含 `topic`、`applies_when`、
-`prefer`、`avoid`、`why` 和 `example_ref`。
-
-`applies_when` 以表达目标、观众感受、人物关系或叙事功能为中心，避免写成单一
-地点、动作或剧情事件。`prefer` 描述可执行的视听语言选择，`why` 描述它如何
-服务表达目标和后续生图质量。具体作品、人物、地点和镜头只作为证据保留在
-`evidence_summary`、`example_ref` 和 Experience 中。
-
-相同视听手段在不同表达目标下可能对应不同规则；应保留这些条件化差异，并从
-优点、欠缺和淘汰原因中提取可复用的方向。不要根据颜色、构图或镜头手段的出现
-频率生成无条件规则，也不要把单一案例的剧情背景直接写成通用规律。
-
-学习结果可以覆盖 narrative context、character and relationship、lighting、
-color、shot and composition、camera、mise-en-scene、visual emotion 和
-integrated visual language 等主题。使用用户的主要语言，不创建任务日志或通用
-用户画像。
-"""
-
-FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。当前学习会话
-属于已配置的影视 Learning Space。根据蒸馏结果更新影视主题级 Quality Skill。
-
-输入中的 Available Skills 是当前 Learning Space 实时提供的 Skill catalog，
-每一项包含 Skill 的准确 `name`（标题）和 `description`。先根据这份 catalog
-判断归属，调用工具时使用 catalog 中的准确 Skill name；不要使用提示词中预设的 Skill 名称或固定主题目录。
-
-从当前 catalog 中选择与本条蒸馏结果最相关的 Skill，最多实际更新 3 个。优先
-复用已有 Skill；只有当前 catalog 没有能够承载该学习点的 Skill 时，才创建新的
-Quality Skill，单次 Learner 运行最多创建 1 个新 Skill。不要编辑或创建
-`daily-logs`、`user-general-facts` 等通用系统 Skill。
-
-编辑 Skill 前先读取该 Skill 的 `SKILL.md`。多个 LearningClaim 如果服务于
-同一个剧本语境、人物目标或叙事目的，应先合并为一组条件化规则，再写入最相关
-的 1-3 个 Skill。单次 Learner 运行的写入范围最多为 3 个 Skill；不要为了覆盖
-每个 Claim 的 topic 而逐个创建或修改 Skill。完成相关写入后立即结束本轮。
-
-Skill 的标题描述可迁移的导演语言原则，description 概括表达目标与主要视听方法。
-正文保留以下结构：
-
-## Applies When
-表达目标、观众感受、人物关系、叙事功能和必要的制作条件。
-
-## Prefer
-服务上述表达目标的条件化视听语言选择，以及可用于生图的执行方向。
-
-## Avoid
-需要避免的条件化选择，包括提交内容中的欠缺和淘汰原因。
-
-## Why
-这些选择如何服务叙事含义和生图质量。
-
-## Examples
-简短的来源 Experience 引用。
-
-同一 Skill 内可以保留多个表达目标不同的条件化规则。合并兼容证据时不要将
-它们变成频率统计，也不要把具体地点或一次性剧情事件写成 Skill 的适用条件。
-使用用户的主要语言，并保留机器可读标识符。只根据当前 Experience 和已有
-Skill 的内容做必要修改。
 """
 
 ACCOUNT_EXAMPLE_MATERIAL = {
@@ -652,26 +396,6 @@ def is_film_space(learning_space_id: object) -> bool:
     return bool(configured) and str(learning_space_id or "") == configured
 
 
-def task_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
-    if is_film_space(learning_space_id):
-        return FILM_TASK_PROMPT
-    return base_prompt + ACU_TASK_POLICY
-
-
-def distillation_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
-    if is_film_space(learning_space_id):
-        return FILM_DISTILLATION_PROMPT
-    if "successful task" in base_prompt.lower():
-        return ACCOUNT_SUCCESS_DISTILLATION_PROMPT
-    return ACCOUNT_FAILURE_DISTILLATION_PROMPT
-
-
-def skill_learner_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
-    if is_film_space(learning_space_id):
-        return FILM_SKILL_LEARNER_PROMPT
-    return ACCOUNT_SKILL_LEARNER_PROMPT
-
-
 def prompt_examples(
     stage: str, examples: dict[str, list[dict[str, object]]]
 ) -> list[dict[str, object]]:
@@ -709,9 +433,8 @@ def account_prompt_examples(stage: str) -> list[dict[str, object]]:
     return prompt_examples(stage, ACCOUNT_PROMPT_EXAMPLES)
 
 
-# Revised prompts: keep the existing tool contracts while making the learning
-# boundary explicit and portable across future account and film experiences.
-REVISED_ACCOUNT_TASK_PROMPT = """你是 Private ACU 的任务整理 Agent。
+# These prompts are the runtime source of truth selected by Learning Space.
+ACCOUNT_TASK_PROMPT = """你是 Private ACU 的任务整理 Agent。
 你的职责是记录用户请求、消息归属和阶段进展，为后续学习保留准确上下文。
 
 ## 任务规则
@@ -730,7 +453,7 @@ REVISED_ACCOUNT_TASK_PROMPT = """你是 Private ACU 的任务整理 Agent。
 任务整理后结束，不提出额外问题。
 """
 
-REVISED_ACCOUNT_DISTILLATION_COMMON = """你是 Private ACU 的账户偏好蒸馏 Agent。
+ACCOUNT_DISTILLATION_COMMON = """你是 Private ACU 的账户偏好蒸馏 Agent。
 你会收到一条完整任务轨迹、人工消息和当前 Learning Space 的 Skill 目录。
 产物是未来相似工作中可复用的用户选择标准，任务本身只提供证据。
 用户偏好必须经过可迁移性检查，才能进入长期 Skill。
@@ -746,8 +469,8 @@ REVISED_ACCOUNT_DISTILLATION_COMMON = """你是 Private ACU 的账户偏好蒸�
 中文字段使用自然中文，只调用一个结果工具并结束。
 """
 
-REVISED_ACCOUNT_SUCCESS_DISTILLATION_PROMPT = (
-    REVISED_ACCOUNT_DISTILLATION_COMMON
+ACCOUNT_SUCCESS_DISTILLATION_PROMPT = (
+    ACCOUNT_DISTILLATION_COMMON
     + """
 
 当前结果被用户接受或任务已成功完成。证据充分时调用
@@ -763,8 +486,8 @@ REVISED_ACCOUNT_SUCCESS_DISTILLATION_PROMPT = (
 """
 )
 
-REVISED_ACCOUNT_FAILURE_DISTILLATION_PROMPT = (
-    REVISED_ACCOUNT_DISTILLATION_COMMON
+ACCOUNT_FAILURE_DISTILLATION_PROMPT = (
+    ACCOUNT_DISTILLATION_COMMON
     + """
 
 当前结果被用户纠正、拒绝或要求返工。证据充分时调用
@@ -782,7 +505,7 @@ REVISED_ACCOUNT_FAILURE_DISTILLATION_PROMPT = (
 """
 )
 
-REVISED_ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户偏好 Skill Learner。
+ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户偏好 Skill Learner。
 你会收到一条经过蒸馏的学习结果和当前 Learning Space 实时提供的 Available Skills。
 你的工作是把可迁移、有证据支持的用户选择标准合并到最合适的 Skill。
 
@@ -803,7 +526,7 @@ REVISED_ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户偏好 Ski
 Skill 的内容，完成必要写入后结束本轮。
 """
 
-REVISED_FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的任务整理 Agent。
+FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的任务整理 Agent。
 当前消息包含一条完整的影视 SelectionExperience，文字可能绑定一张或多张图片。
 
 - 一条 SelectionExperience 对应一个 task，全部图片和文字保持在同一条消息中。
@@ -813,7 +536,7 @@ REVISED_FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的任务整�
 - 使用自然中文处理文本，完成消息关联后结束当前任务整理。
 """
 
-REVISED_FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。
+FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。
 当前会话属于影视 Learning Space，并包含一条 SelectionExperience。文字与图片
 共同构成这条学习单元，图片可能为一张或多张。
 
@@ -838,7 +561,7 @@ REVISED_FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Ag
 可迁移原则时，减少 claims 或报告无法学习，不补写通用规律。使用自然中文。
 """
 
-REVISED_FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。
+FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。
 当前会话属于影视 Learning Space。你会收到本条 Experience 蒸馏出的 claims 和
 当前 Learning Space 实时提供的 Skill catalog（Available Skills）。
 
@@ -857,22 +580,12 @@ REVISED_FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learn
 完成必要写入后结束本轮。
 """
 
-# The selectors below are the runtime source of truth used by Acontext and inspection.
-ACCOUNT_TASK_PROMPT = REVISED_ACCOUNT_TASK_PROMPT
-ACCOUNT_SUCCESS_DISTILLATION_PROMPT = REVISED_ACCOUNT_SUCCESS_DISTILLATION_PROMPT
-ACCOUNT_FAILURE_DISTILLATION_PROMPT = REVISED_ACCOUNT_FAILURE_DISTILLATION_PROMPT
-ACCOUNT_SKILL_LEARNER_PROMPT = REVISED_ACCOUNT_SKILL_LEARNER_PROMPT
-FILM_TASK_PROMPT = REVISED_FILM_TASK_PROMPT
-FILM_DISTILLATION_PROMPT = REVISED_FILM_DISTILLATION_PROMPT
-FILM_SKILL_LEARNER_PROMPT = REVISED_FILM_SKILL_LEARNER_PROMPT
-
-
 def task_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
     if is_film_space(learning_space_id):
         return FILM_TASK_PROMPT
-    if not film_space_id():
-        return base_prompt + ACU_TASK_POLICY
-    return ACCOUNT_TASK_PROMPT
+    if learning_space_id:
+        return ACCOUNT_TASK_PROMPT
+    return base_prompt + ACU_TASK_POLICY
 
 
 def distillation_prompt_for_space(
@@ -880,11 +593,11 @@ def distillation_prompt_for_space(
 ) -> str:
     if is_film_space(learning_space_id):
         return FILM_DISTILLATION_PROMPT
-    if not film_space_id():
-        return base_prompt + ACU_DISTILLATION_POLICY
-    if "successful task" in base_prompt.lower():
-        return ACCOUNT_SUCCESS_DISTILLATION_PROMPT
-    return ACCOUNT_FAILURE_DISTILLATION_PROMPT
+    if learning_space_id:
+        if "successful task" in base_prompt.lower():
+            return ACCOUNT_SUCCESS_DISTILLATION_PROMPT
+        return ACCOUNT_FAILURE_DISTILLATION_PROMPT
+    return base_prompt + ACU_DISTILLATION_POLICY
 
 
 def skill_learner_prompt_for_space(
@@ -892,6 +605,6 @@ def skill_learner_prompt_for_space(
 ) -> str:
     if is_film_space(learning_space_id):
         return FILM_SKILL_LEARNER_PROMPT
-    if not film_space_id():
-        return base_prompt + ACU_SKILL_POLICY
-    return ACCOUNT_SKILL_LEARNER_PROMPT
+    if learning_space_id:
+        return ACCOUNT_SKILL_LEARNER_PROMPT
+    return base_prompt + ACU_SKILL_POLICY

@@ -31,27 +31,24 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, objec
         {
             "id": "account-task",
             "stage": "task",
-            "title": "通用 Acontext 任务整理提示词",
-            "description": "处理普通 Learning Space 的任务整理和消息关联。",
+            "title": "账户任务整理提示词",
+            "description": "Acontext 常规会话用于整理任务；Private ACU 主动 Learning 直接提交 Experience，因此当前链路不执行此步骤。",
             "content": TaskPrompt.system_prompt(learning_space_id),
-            "language": "mixed",
-            "source": "llm/prompt/task.py: TaskPrompt.system_prompt",
+            "language": "zh-CN",
+            "source": "llm/prompt/acu_learning_prompts.py: ACCOUNT_TASK_PROMPT",
             "execution": "bypassed_for_explicit_learning",
             "examples": account_prompt_examples("task"),
         },
         {
             "id": "account-distillation",
             "stage": "distillation",
-            "title": "账户偏好蒸馏提示词",
-            "description": "从账户级学习 Experience 中提取可复用的条件化偏好。",
+            "title": "账户不满意反馈蒸馏提示词",
+            "description": "当前 user_dissatisfaction 路径从完整账户 Experience 中提取可迁移的条件化偏好。",
             "content": SkillDistillationPrompt.failure_distillation_prompt(
                 learning_space_id
             ),
             "language": "zh-CN",
-            "source": (
-                "llm/prompt/skill_distillation.py: "
-                "SkillDistillationPrompt.failure_distillation_prompt"
-            ),
+            "source": "llm/prompt/acu_learning_prompts.py: ACCOUNT_FAILURE_DISTILLATION_PROMPT",
             "execution": "used",
             "examples": account_prompt_examples("distillation"),
         },
@@ -62,7 +59,7 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, objec
             "description": "根据账户级蒸馏结果更新或创建偏好 Skill。",
             "content": SkillLearnerPrompt.system_prompt(learning_space_id),
             "language": "zh-CN",
-            "source": "llm/prompt/skill_learner.py: SkillLearnerPrompt.system_prompt",
+            "source": "llm/prompt/acu_learning_prompts.py: ACCOUNT_SKILL_LEARNER_PROMPT",
             "execution": "used",
             "examples": account_prompt_examples("skill_learner"),
         },
