@@ -121,26 +121,35 @@ Experience 文字是权威学习输入。不要用任务摘要替换它，也不
 从同一条 Experience 更新多个主题 Skill。
 """
 
-FILM_DISTILLATION_PROMPT = """你是影视团队的偏好蒸馏 Agent。当前学习会话属于已
-配置的影视 Learning Space，并包含一条 SelectionExperience。
+FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。当前学习会话属于
+已配置的影视 Learning Space，并包含一条 SelectionExperience。
 
-分析完整的关联证据。文字可能包含 prose quality_context、固定范式的影视语言
-分析、团队决定、good_points、missing_points、rejection_reason、来源信息，以及
-与同一条消息绑定的一张或多张图片。
+分析完整的关联证据。文字可能包含 quality_context、固定范式的影视语言分析、
+团队决定、good_points、missing_points、rejection_reason、来源信息，以及与同一
+条消息绑定的一张或多张图片。
+
+先从 Experience 中识别表达目标：希望观众感受到什么、理解什么，或如何感知人物
+与环境的关系。再把画面中的具体手段归纳为可迁移的导演语言原则，形成：
+
+表达目标 → 导演语言原则 → 可用于生图的视听实现
 
 从这条 Experience 中提取所有有证据支持的学习点，并且只调用一次
 `report_film_learning_claims`。每条 claim 必须包含 `topic`、`applies_when`、
-`prefer`、`avoid`、`why` 和 `example_ref`。每个学习点都要结合剧本语境、
-人物状态、人物关系、叙事目的、情绪和制作约束。相同视听语言在不同条件下
-含义不同的时候，保留这些条件化差异，并保留完整的 Experience ID。
+`prefer`、`avoid`、`why` 和 `example_ref`。
+
+`applies_when` 以表达目标、观众感受、人物关系或叙事功能为中心，避免写成单一
+地点、动作或剧情事件。`prefer` 描述可执行的视听语言选择，`why` 描述它如何
+服务表达目标和后续生图质量。具体作品、人物、地点和镜头只作为证据保留在
+`evidence_summary`、`example_ref` 和 Experience 中。
+
+相同视听手段在不同表达目标下可能对应不同规则；应保留这些条件化差异，并从
+优点、欠缺和淘汰原因中提取可复用的方向。不要根据颜色、构图或镜头手段的出现
+频率生成无条件规则，也不要把单一案例的剧情背景直接写成通用规律。
 
 学习结果可以覆盖 narrative context、character and relationship、lighting、
 color、shot and composition、camera、mise-en-scene、visual emotion 和
-integrated visual language 等主题。当优点、欠缺或淘汰原因能够为后续分镜生图
-提供有效指导时，也要记录它们。
-
-使用用户的主要语言。不要创建任务日志、通用用户画像，也不要仅根据某种视听
-选择出现的频率生成无条件规则。
+integrated visual language 等主题。使用用户的主要语言，不创建任务日志或通用
+用户画像。
 """
 
 FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。当前学习会话
@@ -160,13 +169,14 @@ Quality Skill，单次 Learner 运行最多创建 1 个新 Skill。不要编辑�
 的 1-3 个 Skill。单次 Learner 运行的写入范围最多为 3 个 Skill；不要为了覆盖
 每个 Claim 的 topic 而逐个创建或修改 Skill。完成相关写入后立即结束本轮。
 
-每个 Skill 都必须有清晰的标题或 name 以及 description，正文保留以下结构：
+Skill 的标题描述可迁移的导演语言原则，description 概括表达目标与主要视听方法。
+正文保留以下结构：
 
 ## Applies When
-相关的剧本、人物、关系、情绪、叙事和制作条件。
+表达目标、观众感受、人物关系、叙事功能和必要的制作条件。
 
 ## Prefer
-证据支持的条件化视听语言选择。
+服务上述表达目标的条件化视听语言选择，以及可用于生图的执行方向。
 
 ## Avoid
 需要避免的条件化选择，包括提交内容中的欠缺和淘汰原因。
@@ -177,9 +187,10 @@ Quality Skill，单次 Learner 运行最多创建 1 个新 Skill。不要编辑�
 ## Examples
 简短的来源 Experience 引用。
 
-不同语境下的视觉方向保持为不同的条件化规则。合并兼容证据时不要将它们
-变成频率统计。使用用户的主要语言，并保留机器可读标识符。只根据当前
-Experience 和已有 Skill 的内容做必要修改。
+同一 Skill 内可以保留多个表达目标不同的条件化规则。合并兼容证据时不要将
+它们变成频率统计，也不要把具体地点或一次性剧情事件写成 Skill 的适用条件。
+使用用户的主要语言，并保留机器可读标识符。只根据当前 Experience 和已有
+Skill 的内容做必要修改。
 """
 
 ACCOUNT_EXAMPLE_MATERIAL = {
@@ -270,14 +281,15 @@ ACCOUNT_PROMPT_EXAMPLES = {
 
 FILM_REFERENCE_MATERIAL = {
     "text": (
-        "这张参考图用于一个人物首次进入陌生城市的分镜。剧本语境：人物处于不安和"
-        "疏离状态，叙事目标是在没有对白的情况下先让观众感到空间压迫，再进入人物。"
+        "这张参考图用于表达陌生感、疏离感和主观距离的分镜。剧本语境：人物与环境"
+        "尚未建立信任，叙事目标是在没有对白的情况下让观众先感到感知距离，再进入"
+        "人物视角。"
     ),
     "json": {
         "experience_id": "film-fixture-caligari-holstenwall-01",
         "quality_context": (
-            "人物首次进入陌生城市，处于不安和疏离状态；当前叙事目标是先建立压迫、"
-            "异化的空间感，再让观众进入人物视角。生成分镜图需要保留强烈的场景识别度。"
+            "表达目标是传达陌生感、疏离感和主观距离，让观众感知人物与环境之间的"
+            "距离。生成分镜图需要保持明确的视觉层级，避免无方向的视觉噪声。"
         ),
         "film_language_analysis": {
             "narrative_context": {
@@ -335,26 +347,26 @@ FILM_REFERENCE_MATERIAL = {
 FILM_REFERENCE_CLAIMS = [
     {
         "topic": "lighting",
-        "applies_when": "需要在人物进入陌生空间前建立压迫和不安时",
-        "prefer": "强反差、深边缘阴影和局部轮廓光",
-        "avoid": "均匀铺开的无方向软光",
-        "why": "让空间先于人物产生心理压力",
+        "applies_when": "表达陌生感、疏离感和主观距离，让观众先感到感知上的不安时",
+        "prefer": "保留受控的明暗分区，以深边缘阴影和局部轮廓光限制环境信息",
+        "avoid": "均匀铺开的无方向软光，使所有空间信息同等清晰",
+        "why": "让信息的不完整成为人物与环境之间的感知距离",
         "example_ref": "film-fixture-caligari-holstenwall-01",
     },
     {
         "topic": "shot_and_composition",
-        "applies_when": "需要建立异化城市的整体威胁感时",
-        "prefer": "远景、中心视觉锚点、建筑轮廓形成向内挤压",
-        "avoid": "平均分配视觉重量的平直城市全景",
-        "why": "使观众先感到空间秩序不稳定",
+        "applies_when": "需要让观众感到人物与环境存在距离，且环境先于人物建立心理压力时",
+        "prefer": "使用明确视觉锚点、非均匀透视和向内收束的轮廓组织空间",
+        "avoid": "平均分配视觉重量、缺少视线方向的平直构图",
+        "why": "让空间关系先于剧情信息影响观众的身体感受",
         "example_ref": "film-fixture-caligari-holstenwall-01",
     },
     {
         "topic": "color",
-        "applies_when": "需要让压迫空间保留一个叙事焦点时",
-        "prefer": "暗青黑基础色配集中偏黄高光",
-        "avoid": "全画面均匀高饱和的彩色铺陈",
-        "why": "用有限暖色引导视线，同时维持疏离感",
+        "applies_when": "表达陌生感、疏离感和第一视角感知时",
+        "prefer": "采用较为单调、受控的色调，把有限的色彩变化留给叙事焦点",
+        "avoid": "均匀丰富但缺乏叙事指向的综合色彩",
+        "why": "减少视觉噪声，保持主观感知的一致性，让陌生感来自感知距离",
         "example_ref": "film-fixture-caligari-holstenwall-01",
     },
 ]
@@ -501,17 +513,6 @@ def prompt_examples(
 
 def film_prompt_cards() -> list[dict[str, object]]:
     return [
-        {
-            "id": "film-task",
-            "stage": "task",
-            "title": "影视任务整理提示词",
-            "description": "将一条 SelectionExperience 作为一个学习单元交给后续蒸馏。",
-            "content": FILM_TASK_PROMPT,
-            "language": "zh-CN",
-            "source": "acu_learning_prompts.py: FILM_TASK_PROMPT",
-            "execution": "bypassed_for_explicit_learning",
-            "examples": prompt_examples("task", FILM_PROMPT_EXAMPLES),
-        },
         {
             "id": "film-distillation",
             "stage": "distillation",

@@ -49,23 +49,26 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
             self.assertNotIn("film-language-lighting", prompt)
             self.assertNotIn("影视团队", prompt)
 
-    def test_film_prompt_cards_are_chinese_and_cover_learning_stages(self) -> None:
+    def test_film_prompt_cards_show_only_executed_learning_stages(self) -> None:
         with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
             cards = film_prompt_cards()
 
         self.assertEqual(
             [card["stage"] for card in cards],
-            ["task", "distillation", "skill_learner"],
+            ["distillation", "skill_learner"],
         )
         self.assertTrue(all(card["language"] == "zh-CN" for card in cards))
         self.assertTrue(all(card["content"] for card in cards))
         self.assertTrue(all(card["examples"] for card in cards))
-        self.assertEqual(cards[1]["examples"][0]["origin"], "reference_fixture")
+        self.assertEqual(cards[0]["examples"][0]["origin"], "reference_fixture")
         self.assertEqual(
-            cards[1]["examples"][0]["material"]["images"][0]["mimeType"],
+            cards[0]["examples"][0]["material"]["images"][0]["mimeType"],
             "image/jpeg",
         )
-        self.assertEqual(cards[1]["examples"][0]["artifact"]["format"], "json")
+        self.assertEqual(cards[0]["examples"][0]["artifact"]["format"], "json")
+        self.assertIn("表达目标", cards[0]["content"])
+        self.assertIn("可迁移的导演语言原则", cards[0]["content"])
+        self.assertNotIn("film-task", {card["id"] for card in cards})
 
     def test_film_skill_learner_uses_runtime_catalog_and_limits_writes(self) -> None:
         with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
