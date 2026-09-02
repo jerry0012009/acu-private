@@ -1,0 +1,45 @@
+{
+  "experience_id": "film-poc-2026-09-02-strangeness-01",
+  "quality_context": "表达陌生感、疏离感和主观距离的分镜。人物与环境尚未建立信任，叙事目标是在没有对白的情况下让观众先感到感知距离，再进入人物视角。生成分镜图需要保持明确的视觉层级，避免无方向的视觉噪声。",
+  "film_language_analysis": {
+    "narrative_context": {
+      "function": "让环境先于人物传达不稳定和疏离",
+      "emotion": "陌生、不安、距离感"
+    },
+    "lighting": {
+      "direction": "受控的明暗分区和局部高光",
+      "contrast": "中高反差",
+      "shadow": "边缘与背景保留深色区域"
+    },
+    "color": {
+      "palette": "单色或低变化的灰度组织",
+      "saturation": "限制非叙事性色彩变化"
+    },
+    "shot_and_composition": {
+      "scale": "中远景",
+      "composition": "倾斜线条和不均匀透视把视线推向空间内部",
+      "visual_hierarchy": "环境结构压过人物的自然比例"
+    }
+  },
+  "team_decision": "reference",
+  "good_points": [
+    "倾斜建筑和不均匀透视直接制造环境的不稳定",
+    "受控的灰度和深色边缘保留了疏离感",
+    "人物被放在空间关系中，而不是单独成为装饰性主体"
+  ],
+  "missing_points": [
+    "如果用于人物第一视角，还需要在后续镜头补充更明确的主观视线线索"
+  ],
+  "rejection_reason": null,
+  "source": {
+    "work": "The Cabinet of Dr. Caligari",
+    "fragment": "Cabinet des Dr Caligari 01",
+    "source_url": "https://commons.wikimedia.org/wiki/File:CABINET_DES_DR_CALIGARI_01.jpg",
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/CABINET_DES_DR_CALIGARI_01.jpg"
+  },
+  "provenance": {
+    "provider": "Wikimedia Commons",
+    "license_note": "Public-domain historical film reference as listed by Wikimedia Commons",
+    "analysis_version": "film-json-v1"
+  }
+}

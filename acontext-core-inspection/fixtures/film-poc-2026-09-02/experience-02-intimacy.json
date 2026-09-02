@@ -1,0 +1,45 @@
+{
+  "experience_id": "film-poc-2026-09-02-intimacy-01",
+  "quality_context": "表达亲密、信任和人物关系靠近的分镜。两个人物已经形成明确的情感连接，叙事目标是让观众感到身体距离缩短、注意力集中在关系本身。生成分镜图需要让人物关系成为最强视觉信息。",
+  "film_language_analysis": {
+    "narrative_context": {
+      "function": "把观众注意力收束到两个人物的情感连接",
+      "emotion": "亲密、信任、脆弱"
+    },
+    "lighting": {
+      "direction": "柔和的侧后方光线包裹人物轮廓",
+      "contrast": "中等反差",
+      "shadow": "保留柔软阴影，避免切断人物关系"
+    },
+    "color": {
+      "palette": "连续的灰度和柔和中间调",
+      "saturation": "不依靠强烈色彩抢夺关系焦点"
+    },
+    "shot_and_composition": {
+      "scale": "近景",
+      "composition": "人物身体形成连续的斜向连接",
+      "visual_hierarchy": "面部、手部和身体接触共同形成关系焦点"
+    }
+  },
+  "team_decision": "reference",
+  "good_points": [
+    "近距离构图让身体接触成为叙事信息",
+    "柔和的光线保持人物之间的连续性和脆弱感",
+    "背景细节被压低，观众注意力集中在关系变化"
+  ],
+  "missing_points": [
+    "如果需要表达关系中的不确定性，可以在后续样本中增加遮挡或视线错位"
+  ],
+  "rejection_reason": null,
+  "source": {
+    "work": "Sunrise: A Song of Two Humans",
+    "fragment": "George O'Brien and Margaret Livingston in Sunrise",
+    "source_url": "https://commons.wikimedia.org/wiki/File:George_O%27Brien_and_Margaret_Livingston_in_Sunrise.jpeg",
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/3/38/George_O%27Brien_and_Margaret_Livingston_in_Sunrise.jpeg"
+  },
+  "provenance": {
+    "provider": "Wikimedia Commons",
+    "license_note": "Public-domain historical film reference as listed by Wikimedia Commons",
+    "analysis_version": "film-json-v1"
+  }
+}

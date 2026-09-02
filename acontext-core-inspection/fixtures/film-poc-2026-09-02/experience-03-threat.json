@@ -1,0 +1,45 @@
+{
+  "experience_id": "film-poc-2026-09-02-threat-01",
+  "quality_context": "表达威胁、不安和人物面对巨大外部秩序时的渺小感。叙事目标是让观众先感到力量关系的不对等，再理解人物正在面对的具体事件。生成分镜图需要建立压倒性的尺度关系和清晰的视觉中心。",
+  "film_language_analysis": {
+    "narrative_context": {
+      "function": "建立人物与巨大外部力量之间的不对等",
+      "emotion": "威胁、敬畏、无力"
+    },
+    "lighting": {
+      "direction": "正面或顶部硬光强调巨大主体，人物保持深色剪影",
+      "contrast": "高反差",
+      "shadow": "人物影子延伸到前景，强化压迫尺度"
+    },
+    "color": {
+      "palette": "受控的黑白或低色彩范围",
+      "saturation": "让明暗和尺度承担主要表达"
+    },
+    "shot_and_composition": {
+      "scale": "远景",
+      "composition": "严格对称的垂直轴线和阶梯式空间",
+      "visual_hierarchy": "巨大主体占据上方与背景，人物位于底部中心"
+    }
+  },
+  "team_decision": "reference",
+  "good_points": [
+    "对称轴线把外部力量组织成不可逃避的视觉秩序",
+    "人物的剪影与巨大主体形成直接尺度对比",
+    "受控色彩把注意力留给明暗、空间和权力关系"
+  ],
+  "missing_points": [
+    "如果需要表达正在发生的动态危险，还需要增加方向性运动或不稳定构图"
+  ],
+  "rejection_reason": null,
+  "source": {
+    "work": "Metropolis",
+    "fragment": "Metropolis (1927) - Hel",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Metropolis_(1927)_-_Hel.jpg",
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f9/Metropolis_%281927%29_-_Hel.jpg"
+  },
+  "provenance": {
+    "provider": "Wikimedia Commons",
+    "license_note": "Public-domain historical film reference as listed by Wikimedia Commons",
+    "analysis_version": "film-json-v1"
+  }
+}

@@ -16,7 +16,9 @@ The image binds prompt behavior to Acontext Learning Spaces:
 - dissatisfaction can make a pending/running task eligible for the existing
   failure-distillation path;
 - the Learning Space configured by `ACU_FILM_LEARNING_SPACE_ID` uses an
-  independent film Task, Distillation, and Skill Learner prompt set;
+  independent film prompt set; explicit film learning keeps the internal Task
+  record for orchestration, while the Task Agent is bypassed and only the
+  executed Distillation and Skill Learner prompts are exposed for inspection;
 - all other Learning Spaces retain the pre-film Private ACU prompts;
 - a film `SelectionExperience` can be submitted as text-only or as one text
   plus multiple images;
