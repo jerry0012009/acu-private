@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run tests
+        env:
+          PYTHONPATH: acontext-core-inspection
+        run: >-
+          python -m unittest discover
+          -s acontext-core-inspection
+          -p 'test_*.py'
+
+      - name: Compile Python sources
+        run: python -m compileall -q acontext-core-inspection
