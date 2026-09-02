@@ -42,9 +42,9 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
                 skill_learner_prompt_for_space("BASE SKILL", "ordinary-space"),
             )
 
-        self.assertTrue(prompts[0].startswith("BASE TASK"))
         self.assertNotIn("BASE DISTILL", prompts[1])
         self.assertNotIn("BASE SKILL", prompts[2])
+        self.assertIn("任务整理 Agent", prompts[0])
         self.assertIn("可迁移", prompts[1])
         self.assertIn("可迁移", prompts[2])
         self.assertIn("中文", prompts[1])
@@ -78,13 +78,13 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
             prompt = skill_learner_prompt_for_space("BASE SKILL", FILM_SPACE_ID)
 
         self.assertIn("当前 Learning Space 实时提供的 Skill catalog", prompt)
-        self.assertIn("最多实际更新 3 个", prompt)
-        self.assertIn("最多创建 1 个新 Skill", prompt)
+        self.assertIn("每次最多更新 3 个", prompt)
+        self.assertIn("最多创建 1 个 Skill", prompt)
         self.assertEqual(FILM_MAX_SKILL_WRITES, 3)
         self.assertEqual(FILM_MAX_NEW_SKILLS, 1)
-        self.assertIn("不要使用提示词中预设的 Skill 名称或固定主题目录", prompt)
-        self.assertNotIn("film-language-lighting：", prompt)
-        self.assertNotIn("film-language-color：", prompt)
+        self.assertIn("不使用预设目录", prompt)
+        self.assertNotIn("film-language-lighting", prompt)
+        self.assertNotIn("film-language-color", prompt)
 
     def test_account_prompt_cards_have_text_and_artifact_examples(self) -> None:
         with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
@@ -109,11 +109,19 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
 
         self.assertIn("任务事实", distillation)
         self.assertIn("用户偏好", distillation)
-        self.assertIn("删除页面名、项目名", distillation)
-        self.assertIn("指导另一项同类工作", distillation)
+        self.assertIn("删除一次性名词", distillation)
+        self.assertIn("另一项同类工作", distillation)
         self.assertIn("用户选择标准", learner)
-        self.assertIn("Skill 的 Markdown 标题、description", learner)
-        self.assertIn("替换具体名词后", learner)
+        self.assertIn("标题和 description", learner)
+        self.assertIn("没有稳定规则时不写入", learner)
+
+    def test_effective_account_task_prompt_is_chinese_and_portable(self) -> None:
+        with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
+            prompt = task_prompt_for_space("IGNORED BASE", "ordinary-space")
+        self.assertIn("Private ACU", prompt)
+        self.assertIn("用户明确提出的独立请求", prompt)
+        self.assertIn("不要在任务整理阶段自行生成偏好", prompt)
+        self.assertNotIn("IGNORED BASE", prompt)
 
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
