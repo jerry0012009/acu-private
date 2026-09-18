@@ -123,6 +123,25 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
         self.assertIn("不要在任务整理阶段自行生成偏好", prompt)
         self.assertNotIn("IGNORED BASE", prompt)
 
+    def test_account_preference_writing_keeps_storage_and_result_tool_contracts(self) -> None:
+        with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
+            failure = distillation_prompt_for_space("BASE DISTILL", "ordinary-space")
+            success = distillation_prompt_for_space("successful task", "ordinary-space")
+            learner = skill_learner_prompt_for_space("BASE SKILL", "ordinary-space")
+
+        self.assertIn("report_failure_analysis", failure)
+        self.assertIn("report_success_analysis", success)
+        self.assertIn("skip_learning", failure)
+        self.assertIn("不确定性", failure)
+        self.assertIn("必要条件", failure)
+        self.assertIn("Preference Writer", learner)
+        self.assertIn("真实主文件 `SKILL.md`", learner)
+        self.assertIn("不要改名或创建另一份主文件", learner)
+        self.assertIn("既有 Why", learner)
+        self.assertIn("既有 Evidence", learner)
+        self.assertIn("每次最多更新 3 个", learner)
+        self.assertIn("最多创建 1 个", learner)
+
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(is_film_space(FILM_SPACE_ID))

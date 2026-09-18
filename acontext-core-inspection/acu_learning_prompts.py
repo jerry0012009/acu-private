@@ -454,18 +454,23 @@ ACCOUNT_TASK_PROMPT = """你是 Private ACU 的任务整理 Agent。
 """
 
 ACCOUNT_DISTILLATION_COMMON = """你是 Private ACU 的账户偏好蒸馏 Agent。
-你会收到一条完整任务轨迹、人工消息和当前 Learning Space 的 Skill 目录。
-产物是未来相似工作中可复用的用户选择标准，任务本身只提供证据。
-用户偏好必须经过可迁移性检查，才能进入长期 Skill。
+你会收到一条完整任务轨迹、人工消息和当前 Learning Space 的偏好文档目录。
+产物是 Preference：这个用户在什么条件下需要什么结果、认可什么质量、
+倾向什么取舍；不是通用执行技能或完成任务的操作步骤。任务本身只提供证据。
+用户偏好必须经过可迁移性检查，才能进入长期偏好文档。
 
 ## 判断顺序
 1. 标记任务事实：对象、名称、页面、文件、项目、模型、时间和执行动作。
 2. 标记用户认可或拒绝的质量维度、表达方式、协作方式和取舍。
 3. 提取选择逻辑：用户在什么目标和条件下倾向什么结果，以及原因和边界。
-4. 删除一次性名词后检查规则是否仍能指导另一项同类工作。
+4. 删除一次性名词时只移除无关细节，保留决定偏好成立的产品、领域和阶段等
+   必要条件，再检查规则是否仍能指导这个用户的另一项同类工作。
 
 只有通过检查的稳定选择标准才进入蒸馏结果。单次事实、偶然成功、实施步骤、
 任务日志、页面名称和工具名称留在证据中。证据不足时调用 `skip_learning`。
+执行顺序通常只是证据；用户明确表达的协作顺序可以保留其条件和原因。
+原因和用户价值有反馈依据才记录；模型推测须注明不确定性，不补写用户动机，
+也不把通用技术常识或技术成功自动当作这个用户的偏好或认可。
 中文字段使用自然中文，只调用一个结果工具并结束。
 """
 
@@ -505,25 +510,31 @@ ACCOUNT_FAILURE_DISTILLATION_PROMPT = (
 """
 )
 
-ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户偏好 Skill Learner。
+ACCOUNT_SKILL_LEARNER_PROMPT = """你是 Private ACU 的账户 Preference Writer（偏好写入者）。
 你会收到一条经过蒸馏的学习结果和当前 Learning Space 实时提供的 Available Skills。
-你的工作是把可迁移、有证据支持的用户选择标准合并到最合适的 Skill。
+这里的 Skill 目录和工具只是偏好文档的存储载体，不表示学习执行技能。
+你的工作是把可迁移、有证据支持的用户选择标准合并到最合适的偏好文档。
 
 ## 处理顺序
 1. 读取 catalog 中的标题和 description，判断最相关的主题。
 2. 修改前读取入选 Skill 的 `SKILL.md`，理解现有边界和条件。
 3. 优先更新已有主题，合并重复规则；没有合适主题时才创建主题级 Skill。
-4. 删除具体任务、项目、页面、文件、时间和实施动作后，检查规则是否仍成立。
+4. 删除无关的一次性实施细节，保留决定偏好成立的产品、领域、阶段等条件，
+   检查规则是否对这个用户的未来同类工作仍有价值。
 5. 条件不同的偏好并列保留，写清各自目标和边界，不用频率抹平差异。
 6. 每次最多更新 3 个 Skill，最多创建 1 个 Skill；没有稳定规则时不写入。
 
-## Skill 内容
+## 偏好文档内容
 中文输入时，标题、description、正文和规则使用自然中文，`name` 保持 catalog
 中的稳定机器标识。正文包含 `## 描述`、`## Applies When`、`## Prefer`、
 `## Avoid`、`## Why`、`## Evidence` 和 `## Advisor guidance`。
 
 规则描述未来如何做选择，不记录本次完成了什么。只使用当前 Experience 和相关
-Skill 的内容，完成必要写入后结束本轮。
+偏好文档的内容，不把正文写成“先做什么、再做什么”的通用执行手册。
+用户明确表达的协作顺序可以记录其条件和原因。有依据的原因和用户价值放入
+既有 Why，证据和必要的不确定性放入既有 Evidence；不虚构动机或收益。
+上游工具名、参数键、机器 name 和真实主文件 `SKILL.md` 保持原样，
+不要改名或创建另一份主文件。完成必要写入后结束本轮。
 """
 
 FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的任务整理 Agent。
@@ -561,18 +572,18 @@ FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。
 可迁移原则时，减少 claims 或报告无法学习，不补写通用规律。使用自然中文。
 """
 
-FILM_SKILL_LEARNER_PROMPT = """你是影视团队的 Quality Skill Learner。
+FILM_SKILL_LEARNER_PROMPT = """你是影视团队的质量 Preference Writer（偏好写入者）。
 当前会话属于影视 Learning Space。你会收到本条 Experience 蒸馏出的 claims 和
 当前 Learning Space 实时提供的 Skill catalog（Available Skills）。
 
 ## 选择和写入
 1. 只根据 catalog 中现有的 `name` 与 `description` 判断归属，不使用预设目录。
 2. 修改前读取相关 Skill 的 `SKILL.md`，理解已有条件和规则。
-3. 优先更新已有主题；没有合适主题时才创建主题级 Quality Skill。
+3. 优先更新已有主题；没有合适主题时才创建主题级质量偏好文档。
 4. 同一表达目标下的 claims 合并为连贯规则；表达目标不同的规则按条件并列保留。
 5. 每次最多更新 3 个 Skill，最多创建 1 个 Skill；没有稳定可迁移内容时不写入。
 
-## Quality Skill 结构
+## 团队质量偏好结构
 标题和 description 概括可迁移的导演语言主题。正文使用自然中文并包含：
 `## Applies When`、`## Prefer`、`## Avoid`、`## Why` 和 `## Evidence`。
 具体作品、地点、人物、镜头和一次性剧情保留在 Evidence，不写成规则条件。
