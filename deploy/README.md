@@ -37,3 +37,6 @@ Release steps:
 Core recreation briefly pauses the learning worker; this is not a zero-downtime
 Core rollout. Router and Console remain running. Do not run `compose down` on
 the production project. Retain the private release manifest, old files and image.
+
+Production acceptance and exact configuration/image evidence are recorded in
+[the 2026-10-10 release report](2026-10-10-gpt61-medium-release.md).
