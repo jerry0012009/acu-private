@@ -18,6 +18,11 @@ def container_environment(name):
     return dict(item.split("=", 1) for item in info["Config"]["Env"])
 
 
+def loaded_config(output):
+    # Core imports can log before the explicitly printed, one-line JSON result.
+    return json.loads(output.strip().splitlines()[-1])
+
+
 def request(base, token, method, path, body=None):
     data = json.dumps(body).encode() if body is not None else None
     req = Request(
@@ -65,7 +70,7 @@ def validate_ledger(rows):
 def run_canary(api_url, api_container, core_container, pg_container, timeout):
     env = container_environment(api_container)
     token = "sk-ac-" + env["ROOT_API_BEARER_TOKEN"]
-    config = json.loads(command([
+    config = loaded_config(command([
         "docker", "exec", core_container, "/app/.venv/bin/python", "-c",
         "import json;from acontext_core.util.config import get_local_core_config;"
         "c=get_local_core_config();print(json.dumps({'model':c.llm_simple_model,"

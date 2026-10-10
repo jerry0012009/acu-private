@@ -9,7 +9,7 @@ import yaml
 
 import core_release
 from core_release import production_projection, validate_config
-from learning_canary import validate_ledger
+from learning_canary import loaded_config, validate_ledger
 
 
 CONFIG = {
@@ -19,6 +19,10 @@ CONFIG = {
 
 
 class CoreModelReleaseTest(unittest.TestCase):
+    def test_config_inspection_accepts_core_import_logs_before_result(self):
+        output = json.dumps({"event": "config.loaded"}) + "\n" + json.dumps(CONFIG)
+        self.assertEqual(loaded_config(output), CONFIG)
+
     def test_checked_in_config_has_only_model_and_medium(self):
         self.assertEqual(yaml.safe_load(
             Path(__file__).with_name("core-config.yaml").read_text()
