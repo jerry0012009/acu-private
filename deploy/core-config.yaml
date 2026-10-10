@@ -1,0 +1,3 @@
+llm_simple_model: gpt-6.1-sol
+llm_openai_completion_kwargs:
+  reasoning_effort: medium

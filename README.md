@@ -9,6 +9,8 @@ data, not by separate Acontext deployments.
 - Learning Space-bound prompt sets;
 - Task, Distillation, and Skill Learner patches;
 - Core prompt inspection and usage reporting.
+- Versioned Core model configuration and isolated, Core-only release tooling
+  in [`deploy`](deploy/README.md).
 
 Repository boundaries:
 
