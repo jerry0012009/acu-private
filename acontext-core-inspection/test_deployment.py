@@ -2,6 +2,8 @@ import asyncio
 import sys
 import types
 import unittest
+import tempfile
+from pathlib import Path
 from enum import Enum
 from unittest.mock import AsyncMock, patch
 
@@ -63,6 +65,21 @@ class ConsumerLifecycleTest(unittest.IsolatedAsyncioTestCase):
             lifecycle.activate.assert_not_called()
             lifecycle.finished.set()
             await running
+
+    async def test_active_role_survives_process_restart_but_explicit_drain_clears_it(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict("os.environ", {
+            "ACU_CORE_STANDBY": "true", "ACU_CORE_ROLE_FILE": str(Path(directory) / "active")
+        }):
+            lifecycle = ConsumerLifecycle(types.SimpleNamespace(), types.SimpleNamespace(flush=AsyncMock()))
+            lifecycle._role(True)
+            lifecycle.activate = AsyncMock()
+            running = asyncio.create_task(lifecycle.run())
+            await asyncio.sleep(0)
+            lifecycle.activate.assert_awaited_once()
+            lifecycle.finished.set()
+            await running
+            await lifecycle.drain()
+            self.assertFalse((Path(directory) / "active").exists())
 
     async def test_activate_is_idempotent_and_handles_one_callback_without_replay(self):
         class SpecialHandler(Enum):

@@ -2,6 +2,7 @@
 import asyncio
 import hmac
 import os
+from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -19,6 +20,21 @@ class ConsumerLifecycle:
         self.lock = asyncio.Lock()
         self.finished = asyncio.Event()
         self.drain_task = None
+
+    def _role(self, active):
+        filename = os.environ.get("ACU_CORE_ROLE_FILE")
+        if filename:
+            path = Path(filename)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if active:
+                temporary = path.with_suffix(".tmp")
+                with temporary.open("w") as output:
+                    output.write("active\n")
+                    output.flush()
+                    os.fsync(output.fileno())
+                os.replace(temporary, path)
+            else:
+                path.unlink(missing_ok=True)
 
     async def activate(self):
         async with self.lock:
@@ -49,6 +65,7 @@ class ConsumerLifecycle:
                     tag = await queue.consume(receive)
                     self.subscriptions.append((queue, tag))
                 self.accepting = True
+                self._role(True)
             except BaseException:
                 await self._cancel_subscriptions()
                 await self._finish_tasks()
@@ -72,8 +89,10 @@ class ConsumerLifecycle:
                 await channel.close()
         self.channels.clear()
 
-    async def drain(self):
+    async def drain(self, preserve_role=False):
         async with self.lock:
+            if not preserve_role:
+                self._role(False)
             self.draining = True
             self.accepting = False
             try:
@@ -91,14 +110,17 @@ class ConsumerLifecycle:
                 self.draining = False
 
     async def run(self):
-        if os.environ.get("ACU_CORE_STANDBY") != "true":
+        role = os.environ.get("ACU_CORE_ROLE_FILE")
+        if os.environ.get("ACU_CORE_STANDBY") != "true" or (role and Path(role).is_file()):
             await self.activate()
         await self.finished.wait()
 
     async def stop(self):
+        if self.finished.is_set():
+            return
         if self.drain_task:
             await self.drain_task
-        await self.drain()
+        await self.drain(preserve_role=self.accepting)
         await self.client.disconnect()
         self.finished.set()
 
