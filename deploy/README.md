@@ -1,5 +1,10 @@
 # Acontext Core Model Release
 
+Historical configuration-only single-instance procedure. Production now uses
+API/Core slots controlled by Router `deploy/alpha/acontext-slots.py`;
+read `/root/jerry/claw-router/docs/operations/acontext-blue-green.md` before
+publishing. Do not use `core_release.py apply` against the retired Core.
+
 `core-config.yaml` is the versioned, non-secret authority for the Core model
 and completion kwargs. All Core LLM workers use GPT-6.1 Sol with explicit
 `medium` reasoning. The old `thinking: disabled` extension and `temperature`

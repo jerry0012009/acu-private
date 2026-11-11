@@ -98,6 +98,7 @@ class CoreModelReleaseTest(unittest.TestCase):
                 return ""
 
             with patch.object(core_release, "BASE_COMPOSE", base), \
+                    patch.object(Path, "is_file", return_value=False), \
                     patch.object(core_release, "RUNTIME_CONFIG", runtime), \
                     patch.object(core_release, "verify_protected"), \
                     patch.object(core_release, "inspect", return_value={"Id": "old-id"}), \
@@ -110,6 +111,12 @@ class CoreModelReleaseTest(unittest.TestCase):
             self.assertEqual(len(calls), 2)
             self.assertTrue(all(args[-1] == "core" and "--no-deps" in args for args in calls))
             self.assertEqual(json.loads((root / "status.json").read_text())["status"], "rolled_back")
+
+    def test_old_apply_refuses_to_recreate_retired_core_after_slot_adoption(self):
+        with patch.object(Path, "is_file", return_value=True), patch.object(core_release, "command") as command:
+            with self.assertRaisesRegex(RuntimeError, "single-instance apply is disabled"):
+                core_release.apply(Path("/unused"))
+        command.assert_not_called()
 
     def test_unreadable_queue_inventory_prevents_replacement(self):
         with patch.object(core_release, "command", return_value="unavailable"):

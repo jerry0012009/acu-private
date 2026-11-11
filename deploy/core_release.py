@@ -175,6 +175,8 @@ def wait_idle(timeout=180):
 
 
 def apply(release):
+    if Path("/var/lib/acu/acontext-slots/installation.json").is_file():
+        raise RuntimeError("Acontext slots adopted; historical single-instance apply is disabled")
     manifest = json.loads((release / "manifest.json").read_text())
     status_path = release / "status.json"
     with open("/run/lock/acu-private-core-model.lock", "a") as lock:

@@ -1,5 +1,12 @@
 # Acontext Core Inspection Wrapper
 
+The wrapper also provides authenticated deployment status/activate/drain routes.
+Slot candidates start standby; delivery subscriptions are cancelled before
+waiting for in-flight handlers/ACKs and usage persistence/callback completion.
+Explicit drain clears the slot's active-role marker; normal process shutdown
+preserves active ownership for unexpected restarts. Production release details
+live in the canonical Router `docs/operations/acontext-blue-green.md`.
+
 This image wraps the upstream Acontext Core image and adds one read-only,
 fixed-file inspection endpoint:
 
