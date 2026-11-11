@@ -1,7 +1,8 @@
 # Acontext Core Model Release
 
 Historical configuration-only single-instance procedure. Production now uses
-API/Core slots controlled by Router `deploy/alpha/acontext-slots.py`;
+one paired `acu-private` API/Core slot controlled through Router
+`deploy/alpha/release-unit.py prepare acu-private` / `launch`;
 read `/root/jerry/claw-router/docs/operations/acontext-blue-green.md` before
 publishing. Do not use `core_release.py apply` against the retired Core.
 

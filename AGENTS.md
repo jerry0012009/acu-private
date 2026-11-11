@@ -3,7 +3,10 @@
 - Canonical source: `/root/jerry/acu-private`, remote `jerry0012009/acu-private`.
   Keep main clean; use an owned task worktree under `/root/jerry/.worktrees`.
 - Before production changes read the canonical Router `deploy-acu` skill and
-  `docs/operations/acontext-blue-green.md`. API/Core use A/B slots controlled by
+  `docs/operations/acu-release-units.md` and `acontext-blue-green.md`. Public
+  target is `acu-private` via Router `release-unit.py`: API + Core form one A/B
+  pair, one manifest and atomic route switch/rollback. Never publish independent
+  api/core targets. Internal components are controlled by
   `deploy/alpha/acontext-slots.py` in Router. Do not use historical
   `deploy/core_release.py apply`, direct Docker restart or Compose replacement.
 - Core prompts and lifecycle code belong here. Build from reviewed fixed

@@ -29,7 +29,9 @@ Acontext prompt definitions and Core patches must remain in this repository
 and must not be copied into `acu-router`. The deployed Acontext Core image is
 built from [`acontext-core-inspection`](acontext-core-inspection).
 
-Production API/Core use blue/green application slots; read the canonical Router
+Production API/Core together form one `acu-private` A/B release unit; each slot
+contains both components. Use Router `release-unit.py prepare acu-private` /
+`launch`, not independent API/Core publishing. Read the canonical Router
 runbook `/root/jerry/claw-router/docs/operations/acontext-blue-green.md` and
 `deploy-acu` skill before release. `deploy/core_release.py` is historical
 single-instance model-release tooling, not the current publishing path.
