@@ -1,0 +1,8 @@
+# The reviewed, fully patched baseline. Upstream upgrades are a separate change.
+ARG BASE_IMAGE=acu-private-core@sha256:d5ff3183f7a58571e95aa10f0493d6064e8437f479852c1a651da61b20961d7a
+FROM ${BASE_IMAGE}
+ARG BUILD_COMMIT_SHA
+LABEL org.opencontainers.image.revision=$BUILD_COMMIT_SHA \
+      io.acu.release.features="consumer-standby,consumer-drain,usage-drain"
+COPY deployment.py api_with_inspection.py usage_ledger.py /app/
+CMD ["/app/.venv/bin/uvicorn", "api_with_inspection:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "600"]

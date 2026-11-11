@@ -18,6 +18,8 @@ class AcontextUsageLedger:
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=2048)
         self._pool: asyncpg.Pool | None = None
         self._worker: asyncio.Task[None] | None = None
+        self._reports: set[asyncio.Task] = set()
+        self._failures = 0
         self._usage_report_url = os.environ.get("ACU_USAGE_REPORT_URL", "").strip()
         self._usage_report_token = os.environ.get("ACU_USAGE_REPORT_TOKEN", "").strip()
         self._usage_provider = os.environ.get("ACU_USAGE_PROVIDER", "").strip() or None
@@ -72,8 +74,27 @@ class AcontextUsageLedger:
             item["_logging_context"] = get_logging_contextvars()
             self._queue.put_nowait(item)
         except asyncio.QueueFull:
-            # Losing one ledger row must never block or fail an agent task.
-            pass
+            self._failures += 1
+
+    def pending_count(self) -> int:
+        return self._queue.qsize() + len(self._reports) + int(bool(self._worker and not self._queue.empty()))
+
+    async def flush(self) -> None:
+        await self._queue.join()
+        while self._reports:
+            await asyncio.gather(*list(self._reports), return_exceptions=True)
+        if self._failures:
+            raise RuntimeError("usage ledger persistence/reporting incomplete")
+
+    async def close(self) -> None:
+        await self.flush()
+        if self._worker:
+            self._worker.cancel()
+            await asyncio.gather(self._worker, return_exceptions=True)
+            self._worker = None
+        if self._pool:
+            await self._pool.close()
+            self._pool = None
 
     async def _drain(self) -> None:
         while True:
@@ -139,7 +160,7 @@ class AcontextUsageLedger:
                         json.dumps(metadata, ensure_ascii=True, default=str),
                     )
                 if self._usage_report_url and self._usage_report_token:
-                    asyncio.create_task(
+                    report_task = asyncio.create_task(
                         self._report_usage(
                             {
                                 "ledger_id": ledger_id,
@@ -161,9 +182,11 @@ class AcontextUsageLedger:
                             }
                         )
                     )
+                    self._reports.add(report_task)
+                    report_task.add_done_callback(self._reports.discard)
             except Exception:
                 # Ledger persistence is deliberately best effort and isolated from Core.
-                pass
+                self._failures += 1
             finally:
                 self._queue.task_done()
 
@@ -192,7 +215,10 @@ class AcontextUsageLedger:
             except (HTTPError, URLError, OSError, RuntimeError):
                 if attempt < 2:
                     await asyncio.sleep(2**attempt)
+                else:
+                    self._failures += 1
             except Exception:
+                self._failures += 1
                 return
 
 
