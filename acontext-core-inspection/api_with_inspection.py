@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from api import app
 from inspection import router
+from preference_controls import router as preference_router
 from ledger_startup import install
 from usage_ledger import ledger
 from deployment import install as install_deployment
@@ -20,4 +21,5 @@ async def lifespan(app):
         await ledger.close()
 
 app.include_router(router)
+app.include_router(preference_router)
 app.router.lifespan_context = lifespan

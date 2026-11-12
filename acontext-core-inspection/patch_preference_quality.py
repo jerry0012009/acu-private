@@ -66,6 +66,13 @@ replace(agent, "            already_iterations += 1\n",
         "            if already_iterations >= max_iterations:\n"
         "                raise RuntimeError('Preference writer iteration budget exhausted; completion not established')\n")
 
+ctx = ROOT / "llm/tool/skill_learner_lib/ctx.py"
+replace(ctx, "    if ctx.max_skill_writes is None or skill_name in ctx.skill_write_names:\n",
+        "    existing = ctx.skills.get(skill_name)\n"
+        "    if existing and existing.description.startswith('[ACU_PREFERENCE_DISABLED]'):\n"
+        "        return 'This preference was disabled by its owner; do not modify or recreate it.'\n"
+        "    if ctx.max_skill_writes is None or skill_name in ctx.skill_write_names:\n")
+
 # Both explicit signals use the same evidence-preserving distiller. The ordinary
 # Task Agent otherwise shortens each message to 1024 characters before extraction.
 task = ROOT / "llm/agent/task.py"

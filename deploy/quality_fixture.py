@@ -53,12 +53,13 @@ def main():
         core["environment"][key] = core_env[key]
     core["environment"].update({
         "ACU_USAGE_REPORT_URL": "", "ACU_USAGE_REPORT_TOKEN": "",
-        "ACU_LEARNING_EVENT_URL": "", "ACU_LEARNING_EVENT_TOKEN": "",
+        "ACU_LEARNING_EVENT_URL": "", "ACU_LEARNING_EVENT_TOKEN": secrets.token_hex(32),
         "ACU_FILM_LEARNING_SPACE_ID": "", "ACU_DEPLOY_TOKEN": secrets.token_hex(32),
         "OTEL_ENABLED": "false",
     })
     base["services"]["api"]["ports"] = []
     base["services"]["rabbitmq"]["tmpfs"] = ["/var/lib/rabbitmq:uid=999,gid=999,mode=0700"]
+    base["services"]["rabbitmq"]["user"] = "999:999"
     base["services"]["api"]["environment"].update({
         "ROOT_API_BEARER_TOKEN": secrets.token_hex(32),
         "ROOT_SECRET_PEPPER": secrets.token_hex(32),
