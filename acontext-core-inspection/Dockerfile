@@ -24,6 +24,7 @@ RUN /app/.venv/bin/python /app/patch_opencode_session.py
 COPY inspection.py /app/inspection.py
 COPY api_with_inspection.py /app/api_with_inspection.py
 COPY preference_controls.py /app/preference_controls.py
+COPY preference_document.py /app/preference_document.py
 COPY usage_ledger.py /app/usage_ledger.py
 COPY ledger_startup.py /app/ledger_startup.py
 COPY deployment.py /app/deployment.py

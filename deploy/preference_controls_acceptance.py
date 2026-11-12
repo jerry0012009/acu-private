@@ -46,6 +46,14 @@ def main():
     edited = next(r for r in call("GET", space)["records"] if r["id"] == record["id"])
     assert edited["summary"] == "Keep conclusions first."
     assert edited["scope"] == "Weekly project reports only."
+    assert edited["rule"] == restored["rule"], "Editing summary must preserve the actual rule"
+    assert edited["exceptions"] == restored["exceptions"], "Editing summary must preserve exceptions"
+    call("PUT", path, {"action":"edit", "exceptions":"Legal agreements retain formal wording.", "expected_hash":edited["revision"]})
+    scoped = next(r for r in call("GET", space)["records"] if r["id"] == record["id"])
+    call("PUT", path, {"action":"edit", "rule":"Decisions before implementation details.", "expected_hash":scoped["revision"]})
+    edited = next(r for r in call("GET", space)["records"] if r["id"] == record["id"])
+    assert edited["exceptions"] == "Legal agreements retain formal wording."
+    assert edited["scope"] == "Weekly project reports only."
     api = args.project + "-api-1"
     api_ip = json.loads(command(["docker", "inspect", api]))[0]["NetworkSettings"]["Networks"][args.project + "_default"]["IPAddress"]
     key = "sk-ac-" + container_environment(api)["ROOT_API_BEARER_TOKEN"]

@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 from uuid import UUID
 
-import yaml
+from preference_document import preference_fields, patch_preference
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -15,8 +15,10 @@ router = APIRouter(prefix="/internal/preferences")
 
 class Correction(BaseModel):
     action: str
-    summary: str = Field(default="", max_length=400)
-    scope: str = Field(default="", max_length=400)
+    summary: str | None = Field(default=None, max_length=400)
+    rule: str | None = Field(default=None, max_length=30000)
+    scope: str | None = Field(default=None, max_length=30000)
+    exceptions: str | None = Field(default=None, max_length=30000)
     expected_hash: str = Field(min_length=64, max_length=64)
 
 
@@ -48,7 +50,7 @@ async def controls(space_id: UUID, authorization: str | None = Header(default=No
             content = decode_content(artifact.asset_meta.get("content", ""), None)
             control = (skill.meta or {}).get("acu_control", {})
             records.append({"id": str(skill.id), "summary": (control.get("summary") if control.get("disabled") else skill.description),
-                            "scope": control.get("scope", ""), "disabled": control.get("disabled", False),
+                            **preference_fields(content), "disabled": control.get("disabled", False),
                             "revision": hashlib.sha256(content.encode()).hexdigest(), "updatedAt": skill.updated_at.isoformat()})
         return {"records": records}
 
@@ -58,8 +60,8 @@ async def correct(space_id: UUID, skill_id: UUID, change: Correction, authorizat
     authorize(authorization)
     if change.action not in ("edit", "disable", "restore"):
         raise HTTPException(400, "Unknown preference action")
-    if change.action == "edit" and (not change.summary.strip() or not change.scope.strip()):
-        raise HTTPException(400, "Rule and applicability are required")
+    if change.action == "edit" and change.summary is not None and not change.summary.strip():
+        raise HTTPException(400, "Summary cannot be empty")
     from acontext_core.infra.db import DB_CLIENT
     from acontext_core.schema.orm import AgentSkill, LearningSpace
     from acontext_core.service.data import learning_space as LS
@@ -87,26 +89,38 @@ async def correct(space_id: UUID, skill_id: UUID, change: Correction, authorizat
             original = decode_content(artifact.asset_meta.get("content", ""), None)
             if hashlib.sha256(original.encode()).hexdigest() != change.expected_hash:
                 raise HTTPException(409, "Preference changed; refresh before editing")
+            updated = original
+            changed = []
+            if change.action == "edit":
+                try:
+                    updated, changed = patch_preference(original, change.model_dump(exclude_none=True))
+                except ValueError as error:
+                    raise HTTPException(409, str(error)) from error
             meta, detail = await upload_and_build_artifact_meta(project_id, "/", f"before-user-edit-{change.expected_hash[:16]}.md", original)
             if not (await upsert_artifact(db, skill.disk_id, "/", f"before-user-edit-{change.expected_hash[:16]}.md", meta, meta=detail)).ok():
                 raise HTTPException(503)
             control = dict((skill.meta or {}).get("acu_control", {}))
             if not control.get("disabled"):
                 control["summary"] = skill.description or ""
-            control["disabled"] = change.action == "disable"
+            if change.action in ("disable", "restore"):
+                control["disabled"] = change.action == "disable"
             control["updated_at"] = datetime.now(timezone.utc).isoformat()
             if change.action == "edit":
-                control.update(summary=change.summary.strip(), scope=change.scope.strip(), origin="user_explicit")
-                front = yaml.safe_dump({"name": skill.name, "description": control["summary"], "type": "user_preference", "origin": "user_explicit"}, allow_unicode=True, sort_keys=False)
-                original = "---\n" + front + "---\n# 用户修订的偏好\n\n## Applies When\n" + control["scope"] + "\n\n## Prefer\n" + control["summary"] + "\n\n## Evidence\n用户通过账户偏好编辑确认。此前内容保存在本文件的 before-user-edit 附件中，不作为当前规则。\n"
+                if change.summary is not None:
+                    control["summary"] = change.summary.strip()
+                control.update(origin="user_explicit", edited_fields=changed)
+                original = updated
             # A revision also changes for disable/restore, preventing stale editor writes.
             original += "\n<!-- preference-control: " + control["updated_at"] + " -->\n"
             skill.meta = {**(skill.meta or {}), "acu_control": control}
-            skill.description = ("[ACU_PREFERENCE_DISABLED] " if control["disabled"] else "") + control["summary"]
+            skill.description = ("[ACU_PREFERENCE_DISABLED] " if control.get("disabled") else "") + control["summary"]
             skill.updated_at = datetime.now(timezone.utc)
             meta, detail = await upload_and_build_artifact_meta(project_id, "/", "SKILL.md", original)
             if not (await upsert_artifact(db, skill.disk_id, "/", "SKILL.md", meta, meta=detail)).ok():
                 raise HTTPException(503)
-        return {"updated": True}
+            record = {"id": str(skill_id), "summary": control["summary"], **preference_fields(original),
+                      "disabled": bool(control.get("disabled")), "revision": hashlib.sha256(original.encode()).hexdigest(),
+                      "updatedAt": control["updated_at"]}
+        return {"updated": True, "record": record}
     finally:
         await release_redis_lock(project_id, lock)
