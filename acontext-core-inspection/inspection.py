@@ -15,6 +15,7 @@ PROMPT_FILES = (
 
 def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, object]]:
     from acontext_core.llm.prompt.acu_learning_prompts import (
+        ACCOUNT_ELEMENTS_PROMPT,
         account_prompt_examples,
         film_prompt_cards,
         is_film_space,
@@ -42,13 +43,11 @@ def resolved_prompt_cards(learning_space_id: str | None) -> list[dict[str, objec
         {
             "id": "account-distillation",
             "stage": "distillation",
-            "title": "账户不满意反馈蒸馏提示词",
-            "description": "当前 user_dissatisfaction 路径从完整账户 Experience 中提取可迁移的条件化偏好。",
-            "content": SkillDistillationPrompt.failure_distillation_prompt(
-                learning_space_id
-            ),
+            "title": "账户经验与偏好蒸馏提示词",
+            "description": "不满意与明确偏好信号从证据上下文提取多个独立、条件化的偏好元素；超预算输入明确标记不完整。",
+            "content": ACCOUNT_ELEMENTS_PROMPT,
             "language": "zh-CN",
-            "source": "llm/prompt/acu_learning_prompts.py: ACCOUNT_FAILURE_DISTILLATION_PROMPT",
+            "source": "llm/prompt/acu_learning_prompts.py: ACCOUNT_ELEMENTS_PROMPT",
             "execution": "used",
             "examples": account_prompt_examples("distillation"),
         },

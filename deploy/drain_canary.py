@@ -9,6 +9,8 @@ from urllib.request import Request, urlopen
 def main():
     core = sys.argv[1]
     command = sys.argv[2:]
+    if not core.startswith("acu-quality-fixture-"):
+        raise RuntimeError("Standalone drain canary is restricted to isolated quality fixtures; production handoff belongs to release-unit.py")
     details = json.loads(subprocess.check_output(["docker", "inspect", core]))[0]
     env = dict(item.split("=", 1) for item in details["Config"]["Env"])
     address = details["NetworkSettings"]["Networks"]["acu-router-alpha_alpha-backend"]["IPAddress"]

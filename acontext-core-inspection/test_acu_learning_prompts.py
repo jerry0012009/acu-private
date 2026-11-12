@@ -139,8 +139,8 @@ class LearningSpacePromptIsolationTest(unittest.TestCase):
         self.assertIn("不要改名或创建另一份主文件", learner)
         self.assertIn("既有 Why", learner)
         self.assertIn("既有 Evidence", learner)
-        self.assertIn("每次最多更新 3 个", learner)
-        self.assertIn("最多创建 1 个", learner)
+        self.assertIn("每轮最多触及 6 个", learner)
+        self.assertIn("最多新建 4 个", learner)
 
     def test_unconfigured_space_binding_never_selects_film_prompts(self) -> None:
         with patch.dict(os.environ, {}, clear=True):

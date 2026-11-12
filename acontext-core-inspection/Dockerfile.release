@@ -5,4 +5,7 @@ ARG BUILD_COMMIT_SHA
 LABEL org.opencontainers.image.revision=$BUILD_COMMIT_SHA \
       io.acu.release.features="consumer-standby,consumer-drain,usage-drain"
 COPY deployment.py api_with_inspection.py usage_ledger.py /app/
+COPY acu_learning_prompts.py preference_quality.py /app/acontext_core/llm/prompt/
+COPY inspection.py patch_preference_quality.py /app/
+RUN /app/.venv/bin/python /app/patch_preference_quality.py
 CMD ["/app/.venv/bin/uvicorn", "api_with_inspection:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "600"]
