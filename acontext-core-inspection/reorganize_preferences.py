@@ -145,6 +145,18 @@ async def reorganize(space_id, skill_name, output, apply):
         await release_redis_lock(project_id, lock_key)
 
 
+async def run(args):
+    from acontext_core.infra.s3 import close_s3
+    from acontext_core.infra.redis import close_redis
+    from acontext_core.infra.db import close_database
+    try:
+        await reorganize(args.space, args.skill, args.output, args.apply)
+    finally:
+        await close_s3()
+        await close_redis()
+        await close_database()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--space", required=True)
@@ -152,4 +164,4 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
-    asyncio.run(reorganize(args.space, args.skill, args.output, args.apply))
+    asyncio.run(run(args))
