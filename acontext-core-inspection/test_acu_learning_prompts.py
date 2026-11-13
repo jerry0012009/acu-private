@@ -21,6 +21,13 @@ FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
 
 
 class LearningSpacePromptIsolationTest(unittest.TestCase):
+    def test_personal_understanding_keeps_choices_without_invented_personality(self):
+        from acu_learning_prompts import ACCOUNT_ELEMENTS_PROMPT, ACCOUNT_SKILL_LEARNER_PROMPT
+        self.assertIn("不能牺牲什么", ACCOUNT_ELEMENTS_PROMPT)
+        self.assertIn("不将基本行为规范包装成用户独有特点", ACCOUNT_ELEMENTS_PROMPT)
+        self.assertIn("不因是专名就抹去", ACCOUNT_SKILL_LEARNER_PROMPT)
+        self.assertIn("语义相同的重写不算新增学习", ACCOUNT_SKILL_LEARNER_PROMPT)
+
     def test_film_space_uses_only_film_prompts(self) -> None:
         with patch.dict(os.environ, {FILM_SPACE_ENV: FILM_SPACE_ID}, clear=False):
             prompts = (
