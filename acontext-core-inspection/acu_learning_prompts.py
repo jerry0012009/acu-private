@@ -602,9 +602,16 @@ FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。
 每条 claim 必须包含 `topic`、`applies_when`、`prefer`、`avoid`、`why` 和
 `example_ref`。
 
+自动项目反馈（provenance.source=automatic_project_feedback）只以 human_feedback
+作为本次人工依据，不能从模型建议或生成成功推断偏好。quality_context.learningScope
+为 project 时，每条 applies_when 必须保留稳定 projectId、projectName 和场景条件；
+项目取舍不是团队通用规则。learningScope=team 也保留明确条件，不推断重复次数或共识。
+修订要求不是已完成或已验收证据。个人汇报、协作习惯不在此链路写成团队审美。
+
 `applies_when` 以表达目标、观众感受、人物关系和叙事功能为中心；`prefer` 写成
 可执行的视听语言选择；`why` 连接表达目标与画面效果。作品、人物、地点、镜头
-编号和一次性剧情只保留为证据引用。
+编号和一次性剧情只保留为证据引用；自动项目反馈的稳定项目标识是适用边界，
+不能按此条删除或仅移入 Evidence。
 
 同一手段在不同表达目标下可以形成不同规则，分别保留条件。质量规则来自团队
 明确判断和图片证据，不能由元素出现次数单独推断。无法从当前 Experience 得到
@@ -621,11 +628,17 @@ FILM_SKILL_LEARNER_PROMPT = """你是影视团队的质量 Preference Writer（�
 3. 优先更新已有主题；没有合适主题时才创建主题级质量偏好文档。
 4. 同一表达目标下的 claims 合并为连贯规则；表达目标不同的规则按条件并列保留。
 5. 每次最多更新 3 个 Skill，最多创建 1 个 Skill；没有稳定可迁移内容时不写入。
+6. 新建主题 Skill 的机器 name 使用 `film-language-` 前缀，后接数据驱动的主题名；
+   不预设主题分类，也不改名已有主题。这是团队目录的既有接入命名约定。
 
 ## 团队质量偏好结构
 标题和 description 概括可迁移的导演语言主题。正文使用自然中文并包含：
 `## Applies When`、`## Prefer`、`## Avoid`、`## Why` 和 `## Evidence`。
 具体作品、地点、人物、镜头和一次性剧情保留在 Evidence，不写成规则条件。
+例外：自动项目反馈的 projectId/projectName 必须跟随对应规则保留在 Applies When
+及 description；同一主题可以并列不同项目和团队通用规则，不把整个主题文档改成
+当前项目独占，也不将项目取舍推广为所有团队作品的标准。prefer 原文中的必要条件
+必须保留，避免规则离开上下文后改变含义。不得把模型生成的建议当成人工确认。
 保留条件差异，避免用频率合并矛盾信息。不要编辑系统日志或通用系统 Skill，
 完成必要写入后结束本轮。
 """

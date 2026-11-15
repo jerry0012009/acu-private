@@ -21,6 +21,15 @@ FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
 
 
 class LearningSpacePromptIsolationTest(unittest.TestCase):
+    def test_project_identity_survives_film_distillation_and_writing(self):
+        from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
+        self.assertIn("automatic_project_feedback", FILM_DISTILLATION_PROMPT)
+        self.assertIn("projectId", FILM_DISTILLATION_PROMPT)
+        self.assertIn("不能按此条删除", FILM_DISTILLATION_PROMPT)
+        self.assertIn("projectId/projectName", FILM_SKILL_LEARNER_PROMPT)
+        self.assertIn("不同项目和团队通用规则", FILM_SKILL_LEARNER_PROMPT)
+        self.assertIn("film-language-", FILM_SKILL_LEARNER_PROMPT)
+
     def test_personal_understanding_keeps_choices_without_invented_personality(self):
         from acu_learning_prompts import ACCOUNT_ELEMENTS_PROMPT, ACCOUNT_SKILL_LEARNER_PROMPT
         self.assertIn("不能牺牲什么", ACCOUNT_ELEMENTS_PROMPT)
