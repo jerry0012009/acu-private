@@ -61,7 +61,7 @@ async def apply_plan(payload):
                 digest = hashlib.sha256(previous["SKILL.md"].encode()).hexdigest()
                 if previous.get("learning-review.json") == doc["review"] and previous["SKILL.md"] == doc["content"] and skill.description == doc["description"]:
                     already.append(doc["id"])
-                elif digest != doc["expected_hash"]:
+                elif digest != doc["expected_hash"] or skill.description != doc["expected_description"]:
                     raise RuntimeError("Source changed since review; plan rejected")
                 snapshots[doc["id"]] = (skill, previous)
             if not payload.get("apply"):
@@ -93,5 +93,17 @@ async def apply_plan(payload):
         await release_redis_lock(project_id, lock)
 
 
+async def main():
+    try:
+        return await apply_plan(json.load(sys.stdin))
+    finally:
+        from acontext_core.infra.s3 import close_s3
+        from acontext_core.infra.redis import close_redis
+        from acontext_core.infra.db import close_database
+        await close_s3()
+        await close_redis()
+        await close_database()
+
+
 if __name__ == "__main__":
-    print(json.dumps(asyncio.run(apply_plan(json.load(sys.stdin)))))
+    print(json.dumps(asyncio.run(main())))
