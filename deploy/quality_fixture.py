@@ -16,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
     parser.add_argument("--directory", required=True)
+    parser.add_argument("--film-space", default="")
     args = parser.parse_args()
     directory = Path(args.directory)
     directory.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -54,7 +55,7 @@ def main():
     core["environment"].update({
         "ACU_USAGE_REPORT_URL": "", "ACU_USAGE_REPORT_TOKEN": "",
         "ACU_LEARNING_EVENT_URL": "", "ACU_LEARNING_EVENT_TOKEN": secrets.token_hex(32),
-        "ACU_FILM_LEARNING_SPACE_ID": "", "ACU_DEPLOY_TOKEN": secrets.token_hex(32),
+        "ACU_FILM_LEARNING_SPACE_ID": args.film_space, "ACU_DEPLOY_TOKEN": secrets.token_hex(32),
         "OTEL_ENABLED": "false",
     })
     base["services"]["api"]["ports"] = []
