@@ -21,6 +21,14 @@ FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
 
 
 class LearningSpacePromptIsolationTest(unittest.TestCase):
+    def test_team_taste_separates_correctness_from_independent_choices(self):
+        from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
+        self.assertIn("纠正不自动等于品味", FILM_DISTILLATION_PROMPT)
+        self.assertIn("两个本来都成立的创作", FILM_DISTILLATION_PROMPT)
+        self.assertIn("同一对象不等于同一决策维度", FILM_DISTILLATION_PROMPT)
+        self.assertIn("不删除已有来源经验", FILM_SKILL_LEARNER_PROMPT)
+        self.assertIn("回答同一选择问题", FILM_SKILL_LEARNER_PROMPT)
+
     def test_task_recipe_is_not_evidence_of_team_taste(self):
         from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
         self.assertIn("先判断证据性质", FILM_DISTILLATION_PROMPT)
