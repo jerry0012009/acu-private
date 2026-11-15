@@ -21,6 +21,13 @@ FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
 
 
 class LearningSpacePromptIsolationTest(unittest.TestCase):
+    def test_film_review_distinguishes_decision_dimensions_from_unproven_prompt_causes(self):
+        from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
+        self.assertIn("从修改要求到可复用判断", FILM_DISTILLATION_PROMPT)
+        self.assertIn("没看到时不编造", FILM_DISTILLATION_PROMPT)
+        self.assertIn("抽象层级以证据为限", FILM_DISTILLATION_PROMPT)
+        self.assertIn("Why 区分已知原因、专业解释和未知", FILM_SKILL_LEARNER_PROMPT)
+
     def test_team_learning_compares_conditional_choices_without_project_partition(self):
         from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
         self.assertIn("automatic_team_feedback", FILM_DISTILLATION_PROMPT)
