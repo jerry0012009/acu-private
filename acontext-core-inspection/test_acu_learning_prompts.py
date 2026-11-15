@@ -21,6 +21,12 @@ FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
 
 
 class LearningSpacePromptIsolationTest(unittest.TestCase):
+    def test_task_recipe_is_not_evidence_of_team_taste(self):
+        from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
+        self.assertIn("先判断证据性质", FILM_DISTILLATION_PROMPT)
+        self.assertIn("不单凭出现对象", FILM_DISTILLATION_PROMPT)
+        self.assertIn("单次场景提示词不自动", FILM_SKILL_LEARNER_PROMPT)
+        self.assertIn("不能牺牲什么", FILM_SKILL_LEARNER_PROMPT)
     def test_film_review_distinguishes_decision_dimensions_from_unproven_prompt_causes(self):
         from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
         self.assertIn("从修改要求到可复用判断", FILM_DISTILLATION_PROMPT)
