@@ -369,6 +369,21 @@ FILM_DISTILL_TOOL_FUNCTION = {
                         "avoid": {"type": "string"},
                         "why": {"type": "string"},
                         "example_ref": {"type": "string"},
+                        "review": {
+                            "type": "object",
+                            "properties": {
+                                "goal": {"type": "string"},
+                                "observed_gap": {"type": "string"},
+                                "valued_outcome": {"type": "string"},
+                                "reason_basis": {"type": "string", "enum": ["human_stated", "grounded_interpretation", "unknown"]},
+                                "transfer_test": {"type": "string"},
+                                "counter_condition": {"type": "string"},
+                                "evidence": {"type": "array", "items": {"type": "object", "properties": {
+                                    "source_id": {"type": "string"}, "quote": {"type": "string"},
+                                    "image_id": {"type": "string"}, "observation": {"type": "string"}
+                                }}},
+                            },
+                        },
                     },
                     "required": [
                         "topic",
@@ -586,6 +601,46 @@ FILM_TASK_PROMPT = """你是影视团队 Learning Space 中的任务整理 Agent
 - 使用自然中文处理文本，完成消息关联后结束当前任务整理。
 """
 
+TEAM_EXPERIENCE_REVIEW_POLICY = """
+## 从原始材料复盘，而不是给行为贴标签
+学习对象包括可泛化的经验、偏好和品味，不只收集独特审美。
+先阅读原始提示词、反馈、参考职责和可见图片，再提出候选解释，最后与已有经历对照。
+逐项区分：人工明确要求/纠正、可见图像事实、图谱或时间关联、专业解释、未知。
+连线、相邻时间、继续使用和输出成功都不能单独证明修改因果、满意或最终采纳。
+
+每个候选依次回答，并将简洁结论保留在现有字段中：
+1. 任务目的与素材用途是什么，要求保住哪些结果？
+2. 实际结果与目标差在哪，用户具体保留/拒绝/纠正什么？没有结果就不编造偏差。
+3. 行为背后看重什么？先用用户理由；未明说时只给有图文依据的专业解释，不伪装动机。
+4. 在新对象、同类目标下，下次应该改变哪项判断？条件相反时如何调整？
+5. 与已有规则相比增加了什么？重复则更新证据，独立判断则分开保留。
+离线存量重建与在线增量写入不同：重建时完整重新产出仍然有效的经验，不因旧文档
+已经写过就返回空结果；在线重复只需合并或补证据。明确的多参考职责分离、属性控制和
+反例可以支持可复用经验，无需先证明模型出错或用户满意。没有验收限制的是结果与因果
+主张，不是否允许总结有依据的选择机制；不要将全部生产要求一律当成无价值任务配方。
+
+通用正确性不是用户独有品味，但真实返工暴露的可迁移失误机制可以成为经验。
+不能因为一次反馈、属于完成度问题、缺乏偏好措辞就跳过复盘；也不能只把
+“正确完成任务”换成宏大标题。经验必须有具体可迁移机制、成立条件和未来动作，
+而非“重视质量/遵守要求/不要遗漏”。如果无法得到有增量的规则，保留待对照材料，
+不声称已学到有价值偏好。单个文档可以支持多个独立判断，不以文档数或射线数为目标。
+
+例如提取纯环境素材：不仅核对人物和产品，还应在实际图片支持时检查其依附水滴、
+投影、接触和遮挡是否失去承载物。可学习按最终素材角色审阅关系，而不固化为每次
+必须删手机或所有水滴；当前图像偏差不等于用户已抱怨，也不证明原提示词遗漏。
+用户要求局部删物与授权完整重构不同，后续建议保留必要修改边界。
+
+每条 claim 还须填写 review：goal、observed_gap、valued_outcome、reason_basis
+（human_stated/grounded_interpretation/unknown）、transfer_test（换对象的同类未来任务
+及应如何决策）、counter_condition、evidence（source_id/quote 或 image_id/observation）。
+未知字段写明未知，不用“无”掩盖可见偏差；引用仅使用提供的标识和逐字原文。
+evidence_summary 保留任务目标、反馈和实际素材可用性。每条 why 写清已知依据、
+选择机制与解释性质；example_ref 关联具体反馈/图片及必要反例，不只记一个故事标题。
+最终写入的 Evidence 保留形成规则所需的前后提示词、图像观察与对应标识，
+不能只选一句漂亮原话而丢掉中间偏差或相反条件。Prefer 可包含从这次复盘得到的
+有依据的未来做法，但不能声称该做法已经被用户认可或验证有效。
+"""
+
 FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。
 当前会话属于影视 Learning Space，并包含一条 SelectionExperience。文字与图片
 共同构成这条学习单元，图片可能为一张或多张。
@@ -605,7 +660,8 @@ FILM_DISTILLATION_PROMPT = """你是影视团队的视听语言蒸馏 Agent。
 一次有明确取舍的纠正也可以学习，不强求重复次数或用户说“以后”。
 纠正不自动等于品味：透视/视角定义正确、删净指定对象、修复乱线、照指定版式完成等，
 如果只是把错误或未完成变为正确，不捏造审美取舍。判断它是否在两个本来都成立的创作
-方案中给出了选择标准。单纯正确性要求可作为当前任务经验，不新建团队品味规则。
+方案中给出了选择标准。单纯正确性要求不新建团队品味规则；有图文轨迹支撑的返工机制
+仍应提炼为可迁移经验。
 不要停留在“去掉某个物件/痕迹”的修改清单。先区分已有证据中的目标、实际偏差、
 人工纠正和结果，再识别这次遗漏的创作决策维度：主体与背景职责、信息主次、材质、
 光线、尺度、空间关系等。仅选择本次确实相关的维度，不套固定检查清单。
@@ -678,6 +734,10 @@ description 优先呈现它所支持的选择标准。Prefer 写清下次同类�
 保留条件差异，避免用频率合并矛盾信息。不要编辑系统日志或通用系统 Skill，
 完成必要写入后结束本轮。
 """
+
+FILM_DISTILLATION_PROMPT += TEAM_EXPERIENCE_REVIEW_POLICY
+FILM_SKILL_LEARNER_PROMPT += TEAM_EXPERIENCE_REVIEW_POLICY
+
 
 def task_prompt_for_space(base_prompt: str, learning_space_id: object = None) -> str:
     if is_film_space(learning_space_id):

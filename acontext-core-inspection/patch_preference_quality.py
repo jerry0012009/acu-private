@@ -55,6 +55,12 @@ replace(prompt,
         '        from .preference_quality import evidence_context\n'
         '        messages_section += evidence_context(task_messages)')
 
+# Keep the review in the existing distillation-to-writer queue payload.
+replace(distill,
+        '                f"**Example Ref:** {claim[\'example_ref\']}",',
+        '                f"**Example Ref:** {claim[\'example_ref\']}",\n'
+        '                "**Review:** " + __import__("json").dumps(claim.get("review", {}), ensure_ascii=False),')
+
 # Account budgets are real tool budgets, not just suggestions to the model.
 agent = ROOT / "llm/agent/skill_learner.py"
 replace(agent, "FILM_MAX_SKILL_WRITES if is_film_space(learning_space_id) else None",

@@ -21,6 +21,14 @@ FILM_SPACE_ID = "b938acba-ba53-48ab-8a6e-a148c6b8099c"
 
 
 class LearningSpacePromptIsolationTest(unittest.TestCase):
+    def test_team_review_covers_experience_mechanism_and_future_transfer(self):
+        from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT, FILM_DISTILL_TOOL_FUNCTION
+        for prompt in (FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT):
+            self.assertIn("学习对象包括可泛化的经验、偏好和品味", prompt)
+            self.assertIn("transfer_test", prompt)
+            self.assertIn("不能只选一句漂亮原话", prompt)
+        self.assertIn("review", FILM_DISTILL_TOOL_FUNCTION["parameters"]["properties"]["claims"]["items"]["properties"])
+
     def test_team_taste_separates_correctness_from_independent_choices(self):
         from acu_learning_prompts import FILM_DISTILLATION_PROMPT, FILM_SKILL_LEARNER_PROMPT
         self.assertIn("纠正不自动等于品味", FILM_DISTILLATION_PROMPT)
